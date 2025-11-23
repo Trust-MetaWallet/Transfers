@@ -172,18 +172,18 @@
                     type="text"
                     id="addressInput"
                     autocomplete="off"
-                    placeholder=""
+                    placeholder="Enter wallet address"
                 />
                 <button type="button" onclick="pasteAddress()">Paste</button>
 
                 <!-- Contact icon -->
                 <button type="button" class="icon-btn" title="Contacts">
-                    <img src="/mnt/data/phone book .jpg" alt="Contacts" />
+                    <img src="phone-book.jpg" alt="Contacts" />
                 </button>
 
                 <!-- QR icon -->
                 <button type="button" class="icon-btn" title="Scan QR">
-                    <img src="/mnt/data/qr p.jpg" alt="QR" />
+                    <img src="qr-p.jpg" alt="QR" />
                 </button>
             </div>
         </div>
@@ -195,10 +195,10 @@
                 <input type="number" id="amountInput" value="1" min="0" step="0.01" />
                 <div class="amount-row-right">
                     <span class="token">USDT</span>
-                    <span class="max">Max</span>
+                    <span class="max" onclick="setMaxAmount()">Max</span>
                 </div>
             </div>
-            <div class="usd-hint">= $1.00</div>
+            <div class="usd-hint" id="usdHint">= $1.00</div>
         </div>
     </main>
 
@@ -210,15 +210,26 @@
     <script>
         function pasteAddress() {
             if (navigator.clipboard && navigator.clipboard.readText) {
-                navigator.clipboard.readText().then(function (text) {
-                    document.getElementById("addressInput").value = text;
-                }).catch(function () {
-                    alert("Unable to read from clipboard.");
-                });
+                navigator.clipboard.readText()
+                    .then(text => document.getElementById("addressInput").value = text)
+                    .catch(() => alert("Unable to read from clipboard."));
             } else {
                 alert("Clipboard access not supported in this browser.");
             }
         }
+
+        function setMaxAmount() {
+            const amountInput = document.getElementById("amountInput");
+            amountInput.value = 1000;
+            updateUsd();
+        }
+
+        function updateUsd() {
+            const amount = parseFloat(document.getElementById("amountInput").value) || 0;
+            document.getElementById("usdHint").textContent = `= $${amount.toFixed(2)}`;
+        }
+
+        document.getElementById("amountInput").addEventListener("input", updateUsd);
 
         function goNext() {
             // Change this to whatever page you want
@@ -227,5 +238,3 @@
     </script>
 </body>
 </html>
-
-
