@@ -5,16 +5,12 @@
     <title>polygon.network</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
             font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            background-color: #000000;
-            color: #ffffff;
+            background-color: #000;
+            color: #fff;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -47,7 +43,7 @@
         .row {
             display: flex;
             align-items: center;
-            background-color: #111111;
+            background-color: #111;
             border-radius: 10px;
             border: 1px solid #262626;
             padding: 8px 10px;
@@ -57,13 +53,13 @@
             flex: 1;
             background: transparent;
             border: none;
-            color: #ffffff;
+            color: #fff;
             font-size: 14px;
             outline: none;
         }
 
         .row input::placeholder {
-            color: #555555;
+            color: #555;
         }
 
         .row button,
@@ -88,17 +84,14 @@
         .icon-btn img {
             max-width: 100%;
             max-height: 100%;
-            display: block;
         }
 
-        .amount-box {
-            margin-top: 24px;
-        }
+        .amount-box { margin-top: 24px; }
 
         .amount-row {
             display: flex;
             align-items: center;
-            background-color: #111111;
+            background-color: #111;
             border-radius: 10px;
             border: 1px solid #262626;
             padding: 14px 12px;
@@ -108,7 +101,7 @@
             flex: 1;
             background: transparent;
             border: none;
-            color: #ffffff;
+            color: #fff;
             font-size: 18px;
             outline: none;
         }
@@ -121,14 +114,8 @@
             color: #a0a0a0;
         }
 
-        .amount-row-right .token {
-            color: #ffffff;
-        }
-
-        .amount-row-right .max {
-            color: #00ff7f;
-            cursor: pointer;
-        }
+        .amount-row-right .token { color: #fff; }
+        .amount-row-right .max { color: #00ff7f; cursor: pointer; }
 
         .usd-hint {
             margin-top: 6px;
@@ -138,11 +125,9 @@
 
         .bottom-bar {
             position: fixed;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            left: 0; right: 0; bottom: 0;
             padding: 16px;
-            background: #000000;
+            background: #000;
         }
 
         .next-btn {
@@ -153,7 +138,7 @@
             padding: 14px;
             font-size: 16px;
             font-weight: 500;
-            color: #000000;
+            color: #000;
             cursor: pointer;
         }
     </style>
@@ -175,13 +160,9 @@
                     placeholder="Enter wallet address"
                 />
                 <button type="button" onclick="pasteAddress()">Paste</button>
-
-                <!-- Contact icon -->
                 <button type="button" class="icon-btn" title="Contacts">
                     <img src="phone-book.jpg" alt="Contacts" />
                 </button>
-
-                <!-- QR icon -->
                 <button type="button" class="icon-btn" title="Scan QR">
                     <img src="qr-p.jpg" alt="QR" />
                 </button>
@@ -192,22 +173,35 @@
         <div class="amount-box">
             <div class="label">Amount</div>
             <div class="amount-row">
-                <input type="number" id="amountInput" value="1" min="0" step="0.01" />
+                <input type="number" id="amountInput" min="0" step="0.01" />
                 <div class="amount-row-right">
                     <span class="token">USDT</span>
                     <span class="max" onclick="setMaxAmount()">Max</span>
                 </div>
             </div>
-            <div class="usd-hint" id="usdHint">= $1.00</div>
+            <div class="usd-hint" id="usdHint">≈ 0.00 POL</div>
         </div>
     </main>
 
-    <!-- Bottom Next button -->
     <div class="bottom-bar">
         <button class="next-btn" onclick="goNext()">Next</button>
     </div>
 
     <script>
+        let polPriceUSD = 0;
+
+        async function fetchPolPrice() {
+            try {
+                const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=polygon-ecosystem-token&vs_currencies=usd");
+                const data = await res.json();
+                polPriceUSD = data["polygon-ecosystem-token"].usd;
+                prefillAmount();
+            } catch (e) {
+                console.error("Failed to fetch POL price", e);
+                document.getElementById("usdHint").textContent = "≈ -- POL";
+            }
+        }
+
         function pasteAddress() {
             if (navigator.clipboard && navigator.clipboard.readText) {
                 navigator.clipboard.readText()
@@ -226,15 +220,34 @@
 
         function updateUsd() {
             const amount = parseFloat(document.getElementById("amountInput").value) || 0;
-            document.getElementById("usdHint").textContent = `= $${amount.toFixed(2)}`;
+            if (polPriceUSD > 0) {
+                const polEquivalent = amount / polPriceUSD;
+                document.getElementById("usdHint").textContent = `≈ ${polEquivalent.toFixed(4)} POL`;
+            } else {
+                document.getElementById("usdHint").textContent = "≈ ... POL";
+            }
+        }
+
+        // Prefill amount from previous page (Trust Wallet)
+        function prefillAmount() {
+            const savedAmount = localStorage.getItem("usdtAmount");
+            const input = document.getElementById("amountInput");
+            if (savedAmount) {
+                input.value = parseFloat(savedAmount);
+            } else {
+                input.value = 1; // default fallback
+            }
+            updateUsd();
+        }
+
+        function goNext() {
+            window.location.href = "next.html";
         }
 
         document.getElementById("amountInput").addEventListener("input", updateUsd);
 
-        function goNext() {
-            // Change this to whatever page you want
-            window.location.href = "next.html";
-        }
+        // Initialize on page load
+        fetchPolPrice();
     </script>
 </body>
 </html>
