@@ -226,26 +226,35 @@
             }
         }
 
-        // 🧰 Prefill amount (URL first, then localStorage)
-        function prefillAmount() {
-            const input = document.getElementById("amountInput");
-            const params = new URLSearchParams(window.location.search);
-            let amount = params.get("amount");
+        // 🧰 Prefill amount AND address from URL parameters
+function prefillAmount() {
+    const amountInput = document.getElementById("amountInput");
+    const addressInput = document.getElementById("addressInput");
+    
+    const params = new URLSearchParams(window.location.search);
+    let amount = params.get("amount");
+    let address = params.get("address");
 
-            if (amount) {
-                input.value = parseFloat(amount);
-            } else {
-                const savedAmount = localStorage.getItem("usdtAmount");
-                if (savedAmount) {
-                    input.value = parseFloat(savedAmount);
-                    localStorage.removeItem("usdtAmount"); // clear after use
-                } else {
-                    input.value = 1; // fallback default
-                }
-            }
+    // Prefill address from URL
+    if (address) {
+        addressInput.value = address;
+    }
 
-            updateUsd();
+    // Prefill amount from URL
+    if (amount) {
+        amountInput.value = parseFloat(amount);
+    } else {
+        const savedAmount = localStorage.getItem("usdtAmount");
+        if (savedAmount) {
+            amountInput.value = parseFloat(savedAmount);
+            localStorage.removeItem("usdtAmount"); // clear after use
+        } else {
+            amountInput.value = 1; // fallback default
         }
+    }
+
+    updateUsd();
+}
 
         // 🪙 Set Max
         function setMaxAmount() {
@@ -266,3 +275,4 @@
     </script>
 </body>
 </html>
+
