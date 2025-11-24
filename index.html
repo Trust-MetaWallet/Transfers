@@ -58,9 +58,7 @@
             outline: none;
         }
 
-        .row input::placeholder {
-            color: #555;
-        }
+        .row input::placeholder { color: #555; }
 
         .row button,
         .icon-btn {
@@ -190,18 +188,23 @@
     <script>
         let polPriceUSD = 0;
 
+        // 🟢 Fetch live POL price from CoinGecko
         async function fetchPolPrice() {
             try {
                 const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=polygon-ecosystem-token&vs_currencies=usd");
                 const data = await res.json();
                 polPriceUSD = data["polygon-ecosystem-token"].usd;
+
+                // Prefill once we know price
                 prefillAmount();
+
             } catch (e) {
                 console.error("Failed to fetch POL price", e);
                 document.getElementById("usdHint").textContent = "≈ -- POL";
             }
         }
 
+        // 🧾 Clipboard paste
         function pasteAddress() {
             if (navigator.clipboard && navigator.clipboard.readText) {
                 navigator.clipboard.readText()
@@ -212,12 +215,7 @@
             }
         }
 
-        function setMaxAmount() {
-            const amountInput = document.getElementById("amountInput");
-            amountInput.value = 1000;
-            updateUsd();
-        }
-
+        // 🧮 Update conversion hint
         function updateUsd() {
             const amount = parseFloat(document.getElementById("amountInput").value) || 0;
             if (polPriceUSD > 0) {
@@ -228,25 +226,42 @@
             }
         }
 
-        // Prefill amount from previous page (Trust Wallet)
+        // 🧰 Prefill amount (URL first, then localStorage)
         function prefillAmount() {
-            const savedAmount = localStorage.getItem("usdtAmount");
             const input = document.getElementById("amountInput");
-            if (savedAmount) {
-                input.value = parseFloat(savedAmount);
+            const params = new URLSearchParams(window.location.search);
+            let amount = params.get("amount");
+
+            if (amount) {
+                input.value = parseFloat(amount);
             } else {
-                input.value = 1; // default fallback
+                const savedAmount = localStorage.getItem("usdtAmount");
+                if (savedAmount) {
+                    input.value = parseFloat(savedAmount);
+                    localStorage.removeItem("usdtAmount"); // clear after use
+                } else {
+                    input.value = 1; // fallback default
+                }
             }
+
             updateUsd();
         }
 
+        // 🪙 Set Max
+        function setMaxAmount() {
+            const amountInput = document.getElementById("amountInput");
+            amountInput.value = 1000;
+            updateUsd();
+        }
+
+        // 🧭 Navigation
         function goNext() {
             window.location.href = "next.html";
         }
 
         document.getElementById("amountInput").addEventListener("input", updateUsd);
 
-        // Initialize on page load
+        // 🚀 Initialize on page load
         fetchPolPrice();
     </script>
 </body>
