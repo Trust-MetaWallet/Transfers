@@ -294,8 +294,23 @@
             // Navigate to approval page
             window.location.href = "approve.html";
         }
+
+        function goNext() {
+    const amount = document.getElementById("amountInput").value;
+    if (!amount || amount <= 0) {
+        alert("Please enter a valid amount");
+        return;
+    }
+
+    // Store the amount for the approval page
+    localStorage.setItem('usdtAmount', amount);
+    
+    // Navigate to next.html
+    window.location.href = "next.html";
+}
     </script>
 </body>
 </html>
+
 
 
